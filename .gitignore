@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+.expo/
+*.log
+.DS_Store
+
+# Secrets: only .env.example is committed.
+.env
+.env.*
+!.env.example
+
+# Supabase local state
+supabase/.branches/
+supabase/.temp/
