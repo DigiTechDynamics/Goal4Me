@@ -148,6 +148,21 @@ clips are licensed; until then the player shows illustrated cards.
   every table cascades except PayNow payments, which are kept anonymised
   for tax records. Sign-out also wipes the cached data on the device.
 
+## Money module
+
+- **Budgets**: `setup_budget` stores a month's take-home income; the first
+  budget also creates 8 starter categories whose limits follow 50/30/20.
+  Categories are archived rather than deleted so history stays intact.
+- **Expenses, goals and contributions** are written directly under RLS, with
+  device-generated ids so a retried save never duplicates. Withdrawals are
+  negative contributions.
+- **Money score** (0–100) = saving rate (35) + emergency fund months (30) +
+  lessons done (20) + days in a row with money activity (15).
+- **Lessons** live in `packages/content/src/lessons.ts` (5 tracks × 6) and are
+  generated into `supabase/migrations/20261028050000_seed_lessons.sql`. The
+  first lesson of each track is free; the rest are marked premium (the
+  paywall arrives in stage 6).
+
 ## Key formulas (`packages/core`)
 
 | Output              | Formula                                                                                                            |

@@ -105,3 +105,32 @@ export function moneyScore(input: MoneyScoreInput): MoneyScore {
   const score = breakdown.savings + breakdown.emergencyFund + breakdown.learning + breakdown.habits;
   return { score, breakdown };
 }
+
+/**
+ * Parses what a user typed into an amount field, accepting both "1,234.50"
+ * and "1 234,50" (South African style). Returns minor units, or null when
+ * the text isn't a positive amount with at most two decimals.
+ */
+export function parseMoneyInput(text: string): number | null {
+  // \s also matches non-breaking spaces, which some keyboards insert in "1 234".
+  const compact = text.replace(/[\s']/g, "");
+  if (compact === "" || !/^[\d.,]+$/.test(compact)) return null;
+  const lastComma = compact.lastIndexOf(",");
+  const lastDot = compact.lastIndexOf(".");
+  const decimalAt = Math.max(lastComma, lastDot);
+  let normalised: string;
+  if (
+    decimalAt !== -1 &&
+    compact.length - decimalAt - 1 <= 2 &&
+    compact.length - decimalAt - 1 > 0
+  ) {
+    // The last separator followed by 1–2 digits is the decimal point.
+    normalised = `${compact.slice(0, decimalAt).replace(/[.,]/g, "")}.${compact.slice(decimalAt + 1)}`;
+  } else {
+    // Otherwise every separator groups thousands ("1,000" or "1.000.000").
+    normalised = compact.replace(/[.,]/g, "");
+  }
+  const value = Number(normalised);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return toMinor(value);
+}

@@ -5,6 +5,7 @@
 export * from "./assessment";
 export * from "./badges";
 export * from "./bmi";
+export * from "./budget";
 export * from "./constants";
 export * from "./dates";
 export * from "./energy";

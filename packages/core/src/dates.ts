@@ -39,3 +39,14 @@ export function monthsUntil(from: IsoDate, to: IsoDate): number {
     (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + (b.getUTCMonth() - a.getUTCMonth());
   return b.getUTCDate() > a.getUTCDate() ? months + 1 : Math.max(months, 1);
 }
+
+/** Same day N months later, clamped to the month's last day (31 Jan + 1 → 28/29 Feb). */
+export function addMonths(value: IsoDate, months: number): IsoDate {
+  const d = parseIsoDate(value);
+  const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + months, 1));
+  const lastDay = new Date(
+    Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  target.setUTCDate(Math.min(d.getUTCDate(), lastDay));
+  return toIsoDate(target);
+}
