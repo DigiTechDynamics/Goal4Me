@@ -1,4 +1,6 @@
-import { QueryClientProvider } from "@tanstack/react-query";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { DarkTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
@@ -9,10 +11,15 @@ import { AppText } from "@/components/ui";
 import { AuthProvider, useAuth } from "@/features/auth/AuthProvider";
 import { useOnboardingHydrated } from "@/features/onboarding/store";
 import { envErrors } from "@/lib/env";
-import { queryClient } from "@/lib/queryClient";
+import { PERSIST_OPTIONS, queryClient } from "@/lib/queryClient";
 import { colors, spacing } from "@/theme/tokens";
 
 void SplashScreen.preventAutoHideAsync();
+
+const persister = createAsyncStoragePersister({
+  storage: AsyncStorage,
+  key: "goal4me.query-cache",
+});
 
 const navigationTheme = {
   ...DarkTheme,
@@ -28,14 +35,17 @@ export default function RootLayout() {
   if (envErrors.length > 0) return <ConfigurationError />;
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{ persister, ...PERSIST_OPTIONS }}
+      >
         <AuthProvider>
           <ThemeProvider value={navigationTheme}>
             <StatusBar style="light" />
             <RootNavigator />
           </ThemeProvider>
         </AuthProvider>
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
     </SafeAreaProvider>
   );
 }
@@ -67,6 +77,14 @@ function RootNavigator() {
       </Stack.Protected>
       <Stack.Protected guard={!!session}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="workout/[dayId]"
+          options={{
+            presentation: "fullScreenModal",
+            gestureEnabled: false,
+            animation: "slide_from_bottom",
+          }}
+        />
       </Stack.Protected>
       <Stack.Screen name="(onboarding)" />
     </Stack>

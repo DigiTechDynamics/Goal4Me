@@ -1,10 +1,12 @@
+import { router } from "expo-router";
 import { StyleSheet, View } from "react-native";
 import { ErrorView, LoadingView } from "@/components/StateViews";
-import { AppText, Card, Screen } from "@/components/ui";
+import { AppText, Button, Card, Screen } from "@/components/ui";
 import { useUserId } from "@/features/auth/AuthProvider";
 import { useHomeSummary } from "@/features/home/api";
 import { NeedsPlan } from "@/features/home/NeedsPlan";
 import { usePlan } from "@/features/home/usePlan";
+import { nextWorkoutDay, useProgramPlan } from "@/features/workouts/api";
 import { CATEGORY_COLOR, CATEGORY_LABEL } from "@/features/onboarding/components/BmiScale";
 import { formatWeight } from "@/features/onboarding/units";
 import { toUserMessage } from "@/lib/errors";
@@ -22,6 +24,8 @@ export default function Today() {
   const userId = useUserId();
   const summary = useHomeSummary(userId);
   const plan = usePlan(summary.data);
+  const programPlan = useProgramPlan(userId);
+  const nextDay = programPlan.data ? nextWorkoutDay(programPlan.data) : null;
 
   if (summary.isPending) return <LoadingView />;
   if (summary.isError) {
@@ -96,9 +100,17 @@ export default function Today() {
             <AppText variant="heading">{program?.name ?? "Programme being prepared"}</AppText>
             <AppText color="textMuted">
               {program
-                ? `Day ${program.currentDay} of ${program.durationDays} · ${goal.minutesPerSession} min · ${goal.daysPerWeek} days a week`
+                ? `Day ${nextDay?.dayNumber ?? program.currentDay} of ${program.durationDays} · ${goal.minutesPerSession} min · ${goal.daysPerWeek} days a week`
                 : "Your workouts will appear here as soon as the programme library is live."}
             </AppText>
+            {nextDay ? (
+              <Button
+                label="Start today's workout"
+                onPress={() =>
+                  router.push({ pathname: "/workout/[dayId]", params: { dayId: nextDay.id } })
+                }
+              />
+            ) : null}
           </Card>
 
           {plan.projection.goalDate ? (

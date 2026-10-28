@@ -5,6 +5,7 @@ import { TabIcon, type TabIconName } from "@/components/TabIcon";
 import { Banner, Button } from "@/components/ui";
 import { useUserId } from "@/features/auth/AuthProvider";
 import { useSyncPendingQuiz } from "@/features/onboarding/useSyncPendingQuiz";
+import { useWorkoutSync } from "@/features/workouts/useWorkoutSync";
 import { colors, spacing } from "@/theme/tokens";
 
 const TABS: { name: string; title: string; icon: TabIconName }[] = [
@@ -18,6 +19,7 @@ const TABS: { name: string; title: string; icon: TabIconName }[] = [
 export default function TabsLayout() {
   const userId = useUserId();
   const sync = useSyncPendingQuiz(userId);
+  const unsyncedWorkouts = useWorkoutSync(userId);
   const insets = useSafeAreaInsets();
 
   return (
@@ -26,6 +28,14 @@ export default function TabsLayout() {
         <View style={[styles.syncError, { paddingTop: insets.top + spacing.sm }]}>
           <Banner message="We couldn't save your quiz answers to your account." />
           <Button label="Try again" variant="secondary" onPress={sync.retry} />
+        </View>
+      ) : null}
+      {unsyncedWorkouts > 0 ? (
+        <View style={[styles.syncError, { paddingTop: insets.top + spacing.sm }]}>
+          <Banner
+            tone="info"
+            message={`${unsyncedWorkouts} workout${unsyncedWorkouts > 1 ? "s" : ""} saved on this phone. We'll sync when you're back online.`}
+          />
         </View>
       ) : null}
       <Tabs

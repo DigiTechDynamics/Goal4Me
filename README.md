@@ -46,7 +46,8 @@ goal4me/
 ├── packages/
 │   ├── core/               # Pure business logic: BMI, BMR/TDEE, calorie targets,
 │   │                       # projections, workout progression, money maths + tests
-│   └── schemas/            # Zod schemas shared by the app and Edge Functions + tests
+│   ├── schemas/            # Zod schemas shared by the app and Edge Functions + tests
+│   └── content/            # Exercise library + programme templates → generated seed SQL
 ├── supabase/
 │   ├── config.toml         # Local Supabase settings
 │   ├── migrations/         # SQL schema, RLS policies, triggers, storage bucket
@@ -113,6 +114,21 @@ psql -v ON_ERROR_STOP=1 -f supabase/tests/supabase_stub.sql
 for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls_test.sql
 ```
+
+## Workout content
+
+Exercises and programmes are written in TypeScript in `packages/content`
+(typed and tested: every regression link exists, every programme still gives
+a full workout for any combination of knee, back and wrist limitations).
+After editing content, regenerate the seed migration:
+
+```bash
+pnpm --filter @goal4me/content generate
+```
+
+CI fails if the committed seed is out of date. Exercise videos are optional:
+set `EXPO_PUBLIC_VIDEO_CDN_URL` and fill `exercises.video_path` once the stock
+clips are licensed; until then the player shows illustrated cards.
 
 ## Key formulas (`packages/core`)
 
