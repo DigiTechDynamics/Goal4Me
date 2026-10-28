@@ -1,0 +1,29 @@
+# Supabase CLI configuration for local development (`supabase start`).
+# Anything not set here uses the CLI defaults.
+project_id = "goal4me"
+
+[api]
+port = 54321
+schemas = ["public", "storage"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 16
+
+[studio]
+port = 54323
+
+[auth]
+site_url = "http://localhost:8081"
+additional_redirect_urls = ["goal4me://auth-callback", "http://localhost:8081"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+minimum_password_length = 8
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+
+[storage]
+file_size_limit = "10MiB"
