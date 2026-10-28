@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
 import { LoadingView } from "@/components/StateViews";
 import { Screen } from "@/components/ui";
@@ -9,6 +9,7 @@ import { autoRenews, PAYWALL_REASONS, type PaywallReason } from "@/features/bill
 import { PaynowPaywall } from "@/features/billing/components/PaynowPaywall";
 import { PremiumWelcome } from "@/features/billing/components/PremiumWelcome";
 import { StorePaywall } from "@/features/billing/components/StorePaywall";
+import { track } from "@/lib/analytics";
 
 const asReason = (value: string | undefined): PaywallReason =>
   value && value in PAYWALL_REASONS ? (value as PaywallReason) : "general";
@@ -24,6 +25,10 @@ export default function Paywall() {
   // Paying refreshes the premium query, which flips this screen to the welcome view.
   const { refetch } = premium;
   const refresh = useCallback(() => void refetch(), [refetch]);
+
+  useEffect(() => {
+    track("paywall_viewed", { reason: asReason(reason), platform: Platform.OS });
+  }, [reason]);
 
   const close = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)"));
 

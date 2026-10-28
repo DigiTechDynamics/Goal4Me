@@ -6,6 +6,7 @@ import { StepView } from "@/features/onboarding/components/StepView";
 import { firstIncompleteStep, stepAt, STEPS, validateStep } from "@/features/onboarding/steps";
 import { useOnboardingStore } from "@/features/onboarding/store";
 import { spacing } from "@/theme/tokens";
+import { track } from "@/lib/analytics";
 
 /** Delay before auto-advancing after a single-choice tap, so the selection is visible. */
 const AUTO_ADVANCE_MS = 280;
@@ -38,6 +39,9 @@ export default function Quiz() {
     }
     if (isLast) {
       markCompleted();
+      track("onboarding_completed", {
+        goal: useOnboardingStore.getState().draft.goal ?? "unknown",
+      });
       router.replace("/analysing");
       return;
     }

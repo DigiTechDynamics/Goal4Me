@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tansta
 import { UserFacingError } from "@/lib/errors";
 import { getSupabase } from "@/lib/supabase";
 import { storeBilling } from "./purchases";
+import { track } from "@/lib/analytics";
 
 /**
  * Premium status and PayNow payments. The entitlement row is written only by
@@ -42,7 +43,10 @@ async function fetchPremium(client: QueryClient, userId: string): Promise<Premiu
   const active =
     !!data?.is_active && (data.expires_at === null || Date.parse(data.expires_at) > Date.now());
   const previous = client.getQueryData<PremiumStatus>(billingKeys.premium(userId));
-  if (previous && previous.isPremium !== active) refreshGatedContent(client);
+  if (previous && previous.isPremium !== active) {
+    refreshGatedContent(client);
+    if (active) track("premium_unlocked", { store: data?.store ?? "unknown" });
+  }
   return { isPremium: active, expiresAt: data?.expires_at ?? null, store: data?.store ?? null };
 }
 
@@ -93,6 +97,7 @@ export function useStorePurchase(userId: string) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: async (planId: PlanId): Promise<StoreResult> => {
+      track("checkout_started", { plan: planId, method: "store" });
       const outcome = await storeBilling.purchase(userId, planId);
       if (outcome === "cancelled") return "cancelled";
       return (await waitForPremium(client, userId)) ? "premium" : "pending";
@@ -140,6 +145,7 @@ async function functionError(error: unknown): Promise<Error> {
 export function useStartCheckout() {
   return useMutation({
     mutationFn: async (input: PaynowCheckoutRequest): Promise<CheckoutResult> => {
+      track("checkout_started", { plan: input.planId, method: `paynow_${input.method}` });
       const { data, error } = await getSupabase().functions.invoke<CheckoutResult>(
         "paynow-checkout",
         { body: input },

@@ -20,8 +20,9 @@ then track workouts, body progress, budgets and savings in one app.
 | 6a    | Premium: PayNow (web) + RevenueCat (stores), paywall, free-tier locks                    | Done  |
 | 6b    | Analytics, crash reporting, store builds, Apple Health / Health Connect sync             | Next  |
 
-Apple Health and Health Connect need native modules that only run in an EAS
-development build, so they ship with the store builds in stage 6b.
+Apple Health, Health Connect and store purchases use native modules, so test
+them in an EAS development build (not Expo Go). Everything else also runs on
+the web.
 
 ## Tech stack
 
@@ -210,6 +211,39 @@ shows locks and a paywall instead of empty screens.
 cd supabase/functions
 deno fmt --check && deno lint && deno check */*.ts && deno test -A
 ```
+
+## Monitoring, health sync and privacy
+
+- **Crash reporting**: Sentry (`lib/monitoring.ts`), on only when
+  `EXPO_PUBLIC_SENTRY_DSN` is set. No IP or request bodies are sent, URLs lose
+  their query strings, and every `logger.error` is reported with the same
+  redaction the logger applies.
+- **Analytics**: PostHog EU cloud (`lib/analytics.ts`), on only when
+  `EXPO_PUBLIC_POSTHOG_KEY` is set. Events are a fixed, typed list (onboarding,
+  workouts, lessons, paywall, checkout) with no health or money values, IP
+  geolocation is off, and users can switch it off in Profile.
+- **Apple Health / Health Connect** (`features/health`): opt-in from Profile.
+  Goal4Me only _writes_ weigh-ins and workouts, never reads. Each record
+  carries a stable id so re-saving a day updates it instead of duplicating.
+  The setting is per device and is switched off on sign-out.
+
+## Store builds (EAS)
+
+```bash
+npm i -g eas-cli && eas login
+cd apps/mobile
+eas init                                  # links the project, writes the project id
+eas env:create --name SENTRY_AUTH_TOKEN --visibility secret   # plus every EXPO_PUBLIC_* value
+eas build --profile development --platform ios     # dev client for testing native modules
+eas build --profile production --platform all
+eas submit --profile production --platform all
+```
+
+Profiles live in `apps/mobile/eas.json`: `development` (dev client),
+`preview` (internal testers, Android APK) and `production` (store builds with
+auto-incremented build numbers). Before the first production build, enable
+HealthKit for the `com.goal4me.app` identifier in the Apple Developer portal
+and complete the Health Connect declaration in Play Console.
 
 ## Key formulas (`packages/core`)
 

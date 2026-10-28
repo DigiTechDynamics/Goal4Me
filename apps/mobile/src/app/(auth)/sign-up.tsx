@@ -8,6 +8,7 @@ import { SocialSignIn } from "@/features/auth/SocialSignIn";
 import { useAuthForm } from "@/features/auth/useAuthForm";
 import { signUpSchema } from "@/features/auth/validation";
 import { spacing } from "@/theme/tokens";
+import { track } from "@/lib/analytics";
 
 export default function SignUp() {
   const [email, setEmail] = useState("");
@@ -18,6 +19,7 @@ export default function SignUp() {
   // On success with an active session, the root guard moves the user to the tabs.
   const form = useAuthForm(signUpSchema, async (values) => {
     const { signedIn } = await signUpWithEmail(values);
+    track("signed_up", { method: "email" });
     if (!signedIn) setConfirmationSentTo(values.email);
   });
 
