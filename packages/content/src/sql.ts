@@ -78,7 +78,10 @@ join public.program_days d on d.day_number = ${day.dayNumber}
   return `${lines.join("\n")}\n`;
 }
 
-/** Lessons seed: upsert by slug; the first lesson of every track is free. */
+/** Spec (Monetisation): the free tier includes 3 money lessons, one per beginner track. */
+export const FREE_LESSON_TRACKS: readonly string[] = ["budgeting", "saving", "debt"];
+
+/** Lessons seed: upsert by slug; the first lesson of each FREE_LESSON_TRACKS track is free. */
 export function renderLessonsSql(): string {
   const lines: string[] = [
     "-- =============================================================================",
@@ -89,11 +92,12 @@ export function renderLessonsSql(): string {
   for (const track of LESSON_TRACKS) {
     LESSONS.filter((lesson) => lesson.track === track).forEach((lesson, index) => {
       const position = index + 1;
+      const isFree = position === 1 && FREE_LESSON_TRACKS.includes(track);
       lines.push(
         "",
         `insert into public.lessons (slug, track, position, title, body_md, quiz, action, is_premium, is_published)
 values (${q(lesson.slug)}, ${q(track)}, ${position}, ${q(lesson.title)}, ${q(lesson.body)},
-  ${q(JSON.stringify(lesson.quiz))}::jsonb, ${q(lesson.action)}, ${position > 1}, true)
+  ${q(JSON.stringify(lesson.quiz))}::jsonb, ${q(lesson.action)}, ${!isFree}, true)
 on conflict (slug) do update set track = excluded.track, position = excluded.position,
   title = excluded.title, body_md = excluded.body_md, quiz = excluded.quiz,
   action = excluded.action, is_premium = excluded.is_premium, is_published = true;`,

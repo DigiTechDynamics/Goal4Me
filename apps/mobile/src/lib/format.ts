@@ -10,6 +10,17 @@ export function formatDate(iso: string): string {
   }).format(parseIsoDate(iso));
 }
 
+/** "27 Jan 2027" for a moment in time (e.g. a subscription expiry), in the device's time zone. */
+export function formatTimestamp(timestamp: string): string {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
 export const formatNumber = (value: number): string => new Intl.NumberFormat("en-US").format(value);
 
 /** Today's date (YYYY-MM-DD) in the device's local time zone. */

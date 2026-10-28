@@ -270,7 +270,7 @@ Invest only after you have:
 - No expensive debt (paying off a 30% loan is a guaranteed 30% "return").
 
 Money you need within the next few years should not be invested in shares. Investing works best with time, patience and regular contributions.',
-  '[{"question":"The main reason to invest is…","options":["Growth above inflation over many years","Guaranteed quick profits","To avoid budgeting"],"answer":0},{"question":"Before investing you should have…","options":["An emergency fund","A new car","Several loans"],"answer":0},{"question":"Paying off a 30% loan is like…","options":["A guaranteed 30% return","Losing money","Nothing"],"answer":0}]'::jsonb, 'Check you have an emergency fund goal before you start investing.', false, true)
+  '[{"question":"The main reason to invest is…","options":["Growth above inflation over many years","Guaranteed quick profits","To avoid budgeting"],"answer":0},{"question":"Before investing you should have…","options":["An emergency fund","A new car","Several loans"],"answer":0},{"question":"Paying off a 30% loan is like…","options":["A guaranteed 30% return","Losing money","Nothing"],"answer":0}]'::jsonb, 'Check you have an emergency fund goal before you start investing.', true, true)
 on conflict (slug) do update set track = excluded.track, position = excluded.position,
   title = excluded.title, body_md = excluded.body_md, quiz = excluded.quiz,
   action = excluded.action, is_premium = excluded.is_premium, is_published = true;
@@ -351,7 +351,7 @@ values ('start-with-your-skills', 'side_income', 1, 'Start with your skills', 'A
 - Start small: one paying customer proves the idea.
 
 Services (tutoring, repairs, design) need little money to start. Products need stock and carry more risk. Begin with a service if cash is tight.',
-  '[{"question":"A side income should start with…","options":["Your existing skills","A big loan","Expensive equipment"],"answer":0},{"question":"What proves a side-income idea?","options":["One paying customer","A nice logo","A business card"],"answer":0},{"question":"Services are often easier to start because…","options":["They need little money","They''re always more profitable","No one competes"],"answer":0}]'::jsonb, 'Write down three skills someone might pay you for.', false, true)
+  '[{"question":"A side income should start with…","options":["Your existing skills","A big loan","Expensive equipment"],"answer":0},{"question":"What proves a side-income idea?","options":["One paying customer","A nice logo","A business card"],"answer":0},{"question":"Services are often easier to start because…","options":["They need little money","They''re always more profitable","No one competes"],"answer":0}]'::jsonb, 'Write down three skills someone might pay you for.', true, true)
 on conflict (slug) do update set track = excluded.track, position = excluded.position,
   title = excluded.title, body_md = excluded.body_md, quiz = excluded.quiz,
   action = excluded.action, is_premium = excluded.is_premium, is_published = true;

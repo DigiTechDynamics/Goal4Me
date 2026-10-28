@@ -5,6 +5,9 @@ import { BackButton } from "@/components/BackButton";
 import { ErrorView, LoadingView } from "@/components/StateViews";
 import { AppText, Banner, Button, Card, ChoiceCard, ProgressBar, Screen } from "@/components/ui";
 import { useUserId } from "@/features/auth/AuthProvider";
+import { useIsPremium } from "@/features/billing/api";
+import { LockedCard } from "@/features/billing/components/LockedCard";
+import { openPaywall } from "@/features/billing/gating";
 import {
   parseLessonBody,
   TRACK_LABEL,
@@ -29,6 +32,18 @@ export default function LessonScreen() {
       <ErrorView message={toUserMessage(lesson.error)} onRetry={() => void lesson.refetch()} />
     );
   }
+  if (!lesson.data) {
+    return (
+      <Screen>
+        <BackButton variant="close" />
+        <LockedCard
+          reason="lesson"
+          title="This is a Premium lesson"
+          message="Your 3 free lessons cover budgeting, saving and debt. Premium unlocks all 30, from emergency funds to investing and side income."
+        />
+      </Screen>
+    );
+  }
   // Remount per lesson so "Next lesson" starts fresh.
   return <LessonFlow key={lesson.data.id} lesson={lesson.data} />;
 }
@@ -37,6 +52,7 @@ function LessonFlow({ lesson }: { lesson: Lesson }) {
   const userId = useUserId();
   const complete = useCompleteLesson(userId);
   const all = useLessons(userId);
+  const isPremium = useIsPremium(userId);
   const [phase, setPhase] = useState<Phase>({ step: "read" });
   const [answers, setAnswers] = useState<(number | null)[]>(() => lesson.quiz.map(() => null));
 
@@ -149,7 +165,12 @@ function LessonFlow({ lesson }: { lesson: Lesson }) {
             <Button
               label="Next lesson"
               onPress={() =>
-                router.replace({ pathname: "/money/lesson/[id]", params: { id: nextLesson.id } })
+                nextLesson.isPremium && !isPremium
+                  ? openPaywall("lesson")
+                  : router.replace({
+                      pathname: "/money/lesson/[id]",
+                      params: { id: nextLesson.id },
+                    })
               }
             />
           ) : null}

@@ -23,7 +23,11 @@ export interface LessonSummary {
   quizScore: number | null;
 }
 
-/** All published lessons in track order, with the user's progress. */
+/**
+ * All published lessons in track order, with the user's progress. Reads the
+ * lesson_catalog view, which lists premium lessons' titles even to free users
+ * (the lessons table itself hides their content).
+ */
 export function useLessons(userId: string) {
   return useQuery({
     queryKey: moneyKeys.lessons(userId),
@@ -32,7 +36,7 @@ export function useLessons(userId: string) {
     queryFn: async (): Promise<LessonSummary[]> => {
       const db = getSupabase();
       const [lessons, progress] = await Promise.all([
-        db.from("lessons").select("id, slug, track, position, title, is_premium"),
+        db.from("lesson_catalog").select("id, slug, track, position, title, is_premium"),
         db.from("lesson_progress").select("lesson_id, quiz_score").eq("user_id", userId),
       ]);
       if (lessons.error) throw lessons.error;
@@ -78,17 +82,19 @@ export interface Lesson {
   action: string | null;
 }
 
+/** Null when the lesson is premium and the user isn't (the database hides it). */
 export function useLesson(lessonId: string) {
   return useQuery({
     queryKey: moneyKeys.lesson(lessonId),
     staleTime: 24 * 60 * 60 * 1000,
-    queryFn: async (): Promise<Lesson> => {
+    queryFn: async (): Promise<Lesson | null> => {
       const { data, error } = await getSupabase()
         .from("lessons")
         .select("id, track, title, body_md, quiz, action")
         .eq("id", lessonId)
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) return null;
       const quiz = quizSchema.safeParse(data.quiz);
       return {
         id: data.id,

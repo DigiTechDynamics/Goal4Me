@@ -5,7 +5,15 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["**/node_modules/**", "**/dist/**", "**/coverage/**", "**/.turbo/**", "**/.expo/**"],
+    ignores: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/coverage/**",
+      "**/.turbo/**",
+      "**/.expo/**",
+      // Edge Functions run on Deno and are checked by deno lint/fmt in CI.
+      "supabase/functions/**",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.strict,

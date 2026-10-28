@@ -3,14 +3,17 @@ import { AppText } from "@/components/ui";
 import { colors, radii, spacing } from "@/theme/tokens";
 import type { ProgramPlan } from "../api";
 
-/** 4 × 7 grid of the programme: done, next up, upcoming and rest days. */
+/** 4 × 7 grid of the programme: done, next up, upcoming, locked and rest days. */
 export function ProgramCalendar({
   plan,
   nextDayId,
+  isLocked,
   onOpen,
 }: {
   plan: ProgramPlan;
   nextDayId: string | null;
+  /** Premium-only days for this user; tapping one still calls onOpen (which shows the paywall). */
+  isLocked: (day: ProgramPlan["days"][number]) => boolean;
   onOpen: (dayId: string) => void;
 }) {
   const done = new Set(plan.completedDayIds);
@@ -28,14 +31,23 @@ export function ProgramCalendar({
           {week.map((day) => {
             const isDone = done.has(day.id);
             const isNext = day.id === nextDayId;
-            const state = day.isRestDay ? "rest" : isDone ? "done" : isNext ? "next" : "upcoming";
+            const locked = !isDone && isLocked(day);
+            const state = day.isRestDay
+              ? "rest"
+              : isDone
+                ? "done"
+                : locked
+                  ? "locked"
+                  : isNext
+                    ? "next"
+                    : "upcoming";
             return (
               <Pressable
                 key={day.id}
                 disabled={day.isRestDay}
                 onPress={() => onOpen(day.id)}
                 accessibilityRole="button"
-                accessibilityLabel={`Day ${day.dayNumber}, ${day.isRestDay ? "rest day" : day.title}${isDone ? ", done" : ""}`}
+                accessibilityLabel={`Day ${day.dayNumber}, ${day.isRestDay ? "rest day" : day.title}${isDone ? ", done" : locked ? ", Premium" : ""}`}
                 style={[styles.cell, styles[state]]}
               >
                 <AppText
@@ -43,12 +55,12 @@ export function ProgramCalendar({
                   color={
                     state === "done" || state === "next"
                       ? "onBrand"
-                      : day.isRestDay
+                      : day.isRestDay || locked
                         ? "textSubtle"
                         : "text"
                   }
                 >
-                  {isDone ? "✓" : day.isRestDay ? "–" : day.dayNumber}
+                  {isDone ? "✓" : day.isRestDay ? "–" : locked ? "🔒" : day.dayNumber}
                 </AppText>
               </Pressable>
             );
@@ -73,5 +85,6 @@ const styles = StyleSheet.create({
   done: { backgroundColor: colors.success },
   next: { backgroundColor: colors.brand },
   upcoming: { backgroundColor: colors.surfaceRaised },
+  locked: { backgroundColor: colors.surface },
   rest: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.border },
 });

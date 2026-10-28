@@ -3,6 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { ErrorView, LoadingView } from "@/components/StateViews";
 import { AppText, Button, Card, Screen } from "@/components/ui";
 import { useUserId } from "@/features/auth/AuthProvider";
+import { openPaywall, useDayLocks } from "@/features/billing/gating";
 import { useHomeSummary } from "@/features/home/api";
 import { NeedsPlan } from "@/features/home/NeedsPlan";
 import { usePlan } from "@/features/home/usePlan";
@@ -29,6 +30,8 @@ export default function Today() {
   const programPlan = useProgramPlan(userId);
   const nextDay = programPlan.data ? nextWorkoutDay(programPlan.data) : null;
   const streak = useStreak(userId);
+  const locks = useDayLocks(userId, programPlan.data);
+  const nextLocked = !!nextDay && locks.isLocked(nextDay);
 
   if (summary.isPending) return <LoadingView />;
   if (summary.isError) {
@@ -122,9 +125,11 @@ export default function Today() {
             </AppText>
             {nextDay ? (
               <Button
-                label="Start today's workout"
+                label={nextLocked ? "Unlock your next workout" : "Start today's workout"}
                 onPress={() =>
-                  router.push({ pathname: "/workout/[dayId]", params: { dayId: nextDay.id } })
+                  nextLocked
+                    ? openPaywall("workout")
+                    : router.push({ pathname: "/workout/[dayId]", params: { dayId: nextDay.id } })
                 }
               />
             ) : null}
