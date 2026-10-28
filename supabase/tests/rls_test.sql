@@ -83,6 +83,25 @@ do $$ begin
   exception when check_violation then null; end;
 end $$;
 
+-- complete_onboarding saves everything at once and can be re-run safely.
+select public.complete_onboarding('female', '1996-05-01', 165, 78, 'metric', 'ZW', 'USD',
+  'Africa/Harare', 'lose_weight', 68, 'light', 'beginner', '{belly}', '{}', 4::smallint,
+  15::smallint, null, 'fat-burn-home', false);
+select public.complete_onboarding('female', '1996-05-01', 165, 77.5, 'metric', 'ZW', 'USD',
+  'Africa/Harare', 'tone_up', 68, 'light', 'beginner', '{belly}', '{}', 4::smallint,
+  15::smallint, null, 'fat-burn-home', false);
+do $$ begin
+  assert (select count(*) from public.goals where is_current) = 1, 'exactly one current goal';
+  assert (select goal from public.goals where is_current) = 'tone_up', 'latest goal is current';
+  assert (select country from public.profiles) = 'ZW', 'profile updated';
+  begin
+    perform public.complete_onboarding('female', '1996-05-01', 500, 78, 'metric', 'ZW', 'USD',
+      'Africa/Harare', 'lose_weight', 68, 'light', 'beginner', '{}', '{}', 4::smallint,
+      15::smallint, null, 'fat-burn-home', false);
+    raise exception 'FAIL: impossible height accepted';
+  exception when check_violation then null; end;
+end $$;
+
 -- ---- Act as Bob -------------------------------------------------------------
 select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', true) as _ \gset
 select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222"}', true) as _ \gset

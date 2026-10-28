@@ -35,7 +35,14 @@ then track workouts, body progress, budgets and savings in one app.
 
 ```
 goal4me/
-├── apps/                   # (stage 2) Expo app
+├── apps/
+│   └── mobile/             # Expo app (iOS, Android, web)
+│       └── src/
+│           ├── app/        # Expo Router screens only (no business logic)
+│           ├── components/ # Design-system components (ui/) and shared views
+│           ├── features/   # auth, onboarding, home: api, hooks, components, tests
+│           ├── lib/        # Supabase client, env validation, logger, errors, formatting
+│           └── theme/      # Design tokens (colours, spacing, typography)
 ├── packages/
 │   ├── core/               # Pure business logic: BMI, BMR/TDEE, calorie targets,
 │   │                       # projections, workout progression, money maths + tests
@@ -73,6 +80,18 @@ pnpm check        # lint + format check + typecheck + tests
 ```
 
 Individual tasks: `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm format`.
+
+### Run the app
+
+```bash
+cp .env.example apps/mobile/.env   # fill in EXPO_PUBLIC_SUPABASE_URL and _ANON_KEY
+pnpm --filter @goal4me/mobile start   # then press i (iOS), a (Android) or w (web)
+```
+
+Sign in with Apple and Google need a development build (`npx expo run:ios` or
+`eas build --profile development`) and the providers enabled in Supabase Auth.
+If the Supabase variables are missing, the app shows a configuration screen
+instead of crashing.
 
 ### Run the database locally
 
