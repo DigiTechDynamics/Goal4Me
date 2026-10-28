@@ -9,6 +9,7 @@ import {
 
 const ex = (id: string, difficulty: number, extra: Partial<ExerciseInfo> = {}): ExerciseInfo => ({
   id,
+  slug: id,
   name: id,
   difficulty,
   met: 5,

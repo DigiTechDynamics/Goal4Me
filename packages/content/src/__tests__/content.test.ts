@@ -16,6 +16,7 @@ const library = new Map<string, ExerciseInfo>(
     e.slug,
     {
       id: e.slug,
+      slug: e.slug,
       name: e.name,
       difficulty: e.difficulty,
       met: e.met,

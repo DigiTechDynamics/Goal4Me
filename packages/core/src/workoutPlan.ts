@@ -11,6 +11,8 @@ export type WorkoutPhase = "warmup" | "main" | "cooldown";
 
 export interface ExerciseInfo {
   id: string;
+  /** Stable content key (e.g. "push-up"); also picks the exercise animation. */
+  slug: string;
   name: string;
   difficulty: number;
   met: number;

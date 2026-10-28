@@ -269,7 +269,7 @@ function Player({
         </View>
       ) : step?.kind === "exercise" ? (
         <View style={styles.exercise}>
-          <ExerciseVisual exercise={step.exercise} />
+          <ExerciseVisual exercise={step.exercise} playing={state.status !== "paused"} />
           <View style={styles.meta}>
             <AppText variant="overline" color="textMuted">
               {step.phase === "main"

@@ -64,6 +64,7 @@ async function fetchLibrary(): Promise<ExerciseLibrary> {
         row.id,
         {
           id: row.id,
+          slug: row.slug,
           name: row.name,
           difficulty: row.difficulty,
           met: Number(row.met),
