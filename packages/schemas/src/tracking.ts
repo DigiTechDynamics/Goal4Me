@@ -15,6 +15,24 @@ export const bodyMetricSchema = z.object({
 });
 export type BodyMetricInput = z.infer<typeof bodyMetricSchema>;
 
+export const PHOTO_POSES = ["front", "side", "back"] as const;
+export type PhotoPose = (typeof PHOTO_POSES)[number];
+
+/** Must match the progress-photos bucket limits in the initial migration. */
+export const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
+export const PHOTO_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"] as const;
+
+export const progressPhotoSchema = z.object({
+  id: clientId,
+  takenOn: isoDate,
+  pose: z.enum(PHOTO_POSES),
+  mimeType: z.enum(PHOTO_MIME_TYPES, {
+    errorMap: () => ({ message: "Use a JPEG, PNG, WebP or HEIC photo" }),
+  }),
+  sizeBytes: z.number().int().positive().max(PHOTO_MAX_BYTES, "Photos must be under 10 MB"),
+});
+export type ProgressPhotoInput = z.infer<typeof progressPhotoSchema>;
+
 export const workoutSessionSchema = z.object({
   id: clientId,
   programDayId: z.string().uuid(),

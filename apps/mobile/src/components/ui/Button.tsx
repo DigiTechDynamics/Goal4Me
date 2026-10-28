@@ -3,7 +3,8 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, type ViewStyle } fr
 import { colors, radii, spacing } from "@/theme/tokens";
 import { AppText } from "./AppText";
 
-type Variant = "primary" | "secondary" | "ghost";
+/** "danger" is reserved for irreversible actions (deleting data). */
+type Variant = "primary" | "secondary" | "ghost" | "danger";
 
 interface ButtonProps {
   label: string;
@@ -25,6 +26,7 @@ export function Button({
   accessibilityHint,
 }: ButtonProps) {
   const inactive = disabled || loading;
+  const solid = variant === "primary" || variant === "danger";
 
   const handlePress = () => {
     if (inactive) return;
@@ -49,9 +51,9 @@ export function Button({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === "primary" ? colors.onBrand : colors.text} />
+        <ActivityIndicator color={solid ? colors.onBrand : colors.text} />
       ) : (
-        <AppText variant="bodyStrong" color={variant === "primary" ? "onBrand" : "text"}>
+        <AppText variant="bodyStrong" color={solid ? "onBrand" : "text"}>
           {label}
         </AppText>
       )}
@@ -71,6 +73,7 @@ const styles = StyleSheet.create({
   primaryPressed: { backgroundColor: colors.brandPressed },
   secondary: { backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border },
   ghost: { backgroundColor: "transparent" },
+  danger: { backgroundColor: colors.danger },
   pressed: { opacity: 0.7 },
   disabled: { opacity: 0.4 },
 });

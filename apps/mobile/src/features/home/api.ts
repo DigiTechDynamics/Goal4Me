@@ -23,7 +23,6 @@ export interface HomeSummary {
   } | null;
   weights: { measuredOn: string; weightKg: number }[];
   program: { name: string; currentDay: number; durationDays: number } | null;
-  streak: { currentDays: number; bestDays: number } | null;
 }
 
 /**
@@ -33,7 +32,7 @@ export interface HomeSummary {
  */
 async function fetchHomeSummary(userId: string): Promise<HomeSummary> {
   const db = getSupabase();
-  const [profile, goal, weights, program, streak] = await Promise.all([
+  const [profile, goal, weights, program] = await Promise.all([
     db
       .from("profiles")
       .select("display_name, sex, birth_date, height_cm, units, country, currency")
@@ -59,10 +58,9 @@ async function fetchHomeSummary(userId: string): Promise<HomeSummary> {
       .eq("user_id", userId)
       .eq("is_active", true)
       .maybeSingle(),
-    db.from("streaks").select("current_days, best_days").eq("user_id", userId).maybeSingle(),
   ]);
 
-  const firstError = profile.error ?? goal.error ?? weights.error ?? program.error ?? streak.error;
+  const firstError = profile.error ?? goal.error ?? weights.error ?? program.error;
   if (firstError) throw firstError;
 
   const p = profile.data;
@@ -104,9 +102,6 @@ async function fetchHomeSummary(userId: string): Promise<HomeSummary> {
           currentDay: programRow.current_day,
           durationDays: programRow.programs.duration_days,
         }
-      : null,
-    streak: streak.data
-      ? { currentDays: streak.data.current_days, bestDays: streak.data.best_days }
       : null,
   };
 }

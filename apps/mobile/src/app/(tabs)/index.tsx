@@ -6,6 +6,8 @@ import { useUserId } from "@/features/auth/AuthProvider";
 import { useHomeSummary } from "@/features/home/api";
 import { NeedsPlan } from "@/features/home/NeedsPlan";
 import { usePlan } from "@/features/home/usePlan";
+import { useStreak } from "@/features/progress/api";
+import { WaterCard } from "@/features/progress/components/WaterCard";
 import { nextWorkoutDay, useProgramPlan } from "@/features/workouts/api";
 import { CATEGORY_COLOR, CATEGORY_LABEL } from "@/features/onboarding/components/BmiScale";
 import { formatWeight } from "@/features/onboarding/units";
@@ -26,6 +28,7 @@ export default function Today() {
   const plan = usePlan(summary.data);
   const programPlan = useProgramPlan(userId);
   const nextDay = programPlan.data ? nextWorkoutDay(programPlan.data) : null;
+  const streak = useStreak(userId);
 
   if (summary.isPending) return <LoadingView />;
   if (summary.isError) {
@@ -34,7 +37,8 @@ export default function Today() {
     );
   }
 
-  const { profile, goal, program, streak, weights } = summary.data;
+  const { profile, goal, program, weights } = summary.data;
+  const live = streak.data?.streak;
   const latest = weights[0];
 
   return (
@@ -58,11 +62,22 @@ export default function Today() {
               <AppText variant="caption" color="textMuted">
                 Streak
               </AppText>
-              <AppText variant="display" color="brand">
-                {streak?.currentDays ?? 0}
+              <AppText variant="display" color={live?.days ? "brand" : "textMuted"}>
+                {live?.days ?? 0}
               </AppText>
-              <AppText variant="caption" color="textSubtle">
-                days · best {streak?.bestDays ?? 0}
+              <AppText
+                variant="caption"
+                color={
+                  live?.status === "at_risk" || live?.status === "freeze_needed"
+                    ? "warning"
+                    : "textSubtle"
+                }
+              >
+                {live?.status === "done_today"
+                  ? "days · done today"
+                  : live?.status === "at_risk" || live?.status === "freeze_needed"
+                    ? "days · train today"
+                    : `days · best ${live?.bestDays ?? 0}`}
               </AppText>
             </Card>
             <Card style={styles.half}>
@@ -92,6 +107,8 @@ export default function Today() {
               <Target label="Water" value={(plan.waterMl / 1000).toFixed(1)} unit="L" />
             </View>
           </Card>
+
+          <WaterCard userId={userId} targetMl={plan.waterMl} />
 
           <Card>
             <AppText variant="overline" color="textMuted">

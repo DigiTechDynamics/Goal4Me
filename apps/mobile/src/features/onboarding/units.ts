@@ -27,3 +27,29 @@ export function parseHeight(cmOrFeet: string, inches: string, units: Units): num
   if (!Number.isFinite(b)) return null;
   return round(feetInchesToCm(a, b), 1);
 }
+
+const CM_PER_INCH = 2.54;
+
+/** Weight as a number in the user's units (for charts and form defaults). */
+export function weightInUnits(kg: number, units: Units): number {
+  return units === "metric" ? round(kg, 1) : round(kgToLb(kg), 1);
+}
+
+/** Body measurements (waist, hips…): cm for metric, inches for imperial. */
+export function formatLength(cm: number, units: Units, signed = false): string {
+  const value = units === "metric" ? round(cm, 1) : round(cm / CM_PER_INCH, 1);
+  const sign = signed && value > 0 ? "+" : "";
+  // A true minus sign reads better than a hyphen next to numbers.
+  return `${sign}${String(value).replace("-", "−")} ${units === "metric" ? "cm" : "in"}`;
+}
+
+export function lengthInUnits(cm: number, units: Units): number {
+  return units === "metric" ? round(cm, 1) : round(cm / CM_PER_INCH, 1);
+}
+
+/** Converts a typed measurement to cm (null if empty or not a number). */
+export function parseLength(text: string, units: Units): number | null {
+  const value = Number(text.replace(",", "."));
+  if (!Number.isFinite(value) || text.trim() === "") return null;
+  return round(units === "metric" ? value : value * CM_PER_INCH, 1);
+}

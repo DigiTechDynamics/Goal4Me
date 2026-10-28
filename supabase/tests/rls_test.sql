@@ -126,6 +126,52 @@ do $$ begin
   assert (select current_day from public.user_programs where is_active) = 2, 'programme advanced to day 2';
 end $$;
 
+-- Stage 4 (onboarding already logged today): weigh-ins replace the same day's entry and keep the original id.
+select public.log_body_metric('aaaaaaaa-0000-0000-0000-000000000002', current_date - 3, 79.5, 90);
+select public.log_body_metric('aaaaaaaa-0000-0000-0000-000000000003', current_date - 3, 79.1, null, 101);
+do $$ declare m record; begin
+  select * into m from public.body_metrics where measured_on = current_date - 3;
+  assert m.id = 'aaaaaaaa-0000-0000-0000-000000000002', 'same-day re-log keeps the row id';
+  assert m.weight_kg = 79.1 and m.waist_cm is null and m.hips_cm = 101, 're-log replaces values';
+  begin
+    perform public.log_body_metric(gen_random_uuid(), current_date + 5, 80);
+    raise exception 'FAIL: future weigh-in accepted';
+  exception when invalid_parameter_value then null; end;
+  begin
+    perform public.log_body_metric(gen_random_uuid(), current_date - 1, 500);
+    raise exception 'FAIL: impossible weight accepted';
+  exception when check_violation then null; end;
+end $$;
+
+-- Water is added atomically and clamped at zero.
+do $$ begin
+  assert public.add_water(current_date, 500) = 500, 'first glass';
+  assert public.add_water(current_date, 250) = 750, 'adds up';
+  assert public.add_water(current_date, -2000) = 0, 'never below zero';
+  begin
+    perform public.add_water(current_date, 5000);
+    raise exception 'FAIL: absurd water change accepted';
+  exception when invalid_parameter_value then null; end;
+end $$;
+
+-- A photo row can only point into the owner's own storage folder.
+do $$ begin
+  begin
+    insert into public.progress_photos (user_id, taken_on, pose, storage_path)
+    values ('11111111-1111-1111-1111-111111111111', current_date, 'front',
+            '22222222-2222-2222-2222-222222222222/x.jpg');
+    raise exception 'FAIL: photo path outside own folder accepted';
+  exception when check_violation then null; end;
+end $$;
+
+-- The export contains only the caller's data, without user ids.
+do $$ declare e jsonb := public.export_my_data(); begin
+  assert e ->> 'format' = 'goal4me-export-v1', 'export is versioned';
+  assert jsonb_array_length(e -> 'body_metrics') = 3, 'export has every weigh-in';
+  assert jsonb_array_length(e -> 'workout_sessions') = 6, 'export has the workouts';
+  assert not (e -> 'profiles' -> 0) ? 'user_id', 'user ids are stripped';
+end $$;
+
 -- ---- Act as Bob -------------------------------------------------------------
 select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', true) as _ \gset
 select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222"}', true) as _ \gset
@@ -147,6 +193,32 @@ do $$ begin
    where user_id = '11111111-1111-1111-1111-111111111111';
 end $$;
 
+-- Bob deletes his own account: refused while a photo file remains, then works.
+do $$ declare e jsonb := public.export_my_data(); begin
+  assert jsonb_array_length(e -> 'body_metrics') = 0, 'Bob''s export has none of Alice''s data';
+end $$;
+reset role;
+insert into storage.objects (bucket_id, name)
+values ('progress-photos', '22222222-2222-2222-2222-222222222222/front.jpg');
+set local role authenticated;
+do $$ begin
+  begin
+    perform public.delete_my_account();
+    raise exception 'FAIL: deleted an account that still has photos';
+  exception when raise_exception then null; end;
+end $$;
+reset role;
+delete from storage.objects where name like '22222222-2222-2222-2222-222222222222/%';
+set local role authenticated;
+select public.delete_my_account();
+reset role;
+do $$ begin
+  assert not exists (select 1 from auth.users where id = '22222222-2222-2222-2222-222222222222'),
+    'Bob deleted himself';
+  assert exists (select 1 from auth.users where id = '11111111-1111-1111-1111-111111111111'),
+    'deleting Bob left Alice alone';
+end $$;
+
 -- ---- Back to the service role: account deletion cascades -------------------
 reset role;
 do $$ begin
@@ -155,6 +227,9 @@ do $$ begin
          'Bob''s update must not touch Alice''s profile';
 end $$;
 
+-- A payment record must survive account deletion, detached from the user.
+insert into public.paynow_payments (user_id, plan_id, amount_minor, reference, status)
+values ('11111111-1111-1111-1111-111111111111', 'premium_yearly', 3999, 'G4M-TEST-1', 'paid');
 delete from auth.users where id = '11111111-1111-1111-1111-111111111111';
 do $$ begin
   assert (select count(*) from public.body_metrics) = 0, 'metrics deleted with the account';

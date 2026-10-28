@@ -1,6 +1,8 @@
+import { router } from "expo-router";
 import { useState } from "react";
 import { Alert, Platform, StyleSheet, View } from "react-native";
 import { AppText, Banner, Button, Card, Screen } from "@/components/ui";
+import { exportMyData } from "@/features/account/api";
 import { signOut } from "@/features/auth/api";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useHomeSummary } from "@/features/home/api";
@@ -14,6 +16,22 @@ export default function Profile() {
   const summary = useHomeSummary(session?.user.id ?? "");
   const [error, setError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportDone, setExportDone] = useState(false);
+
+  const doExport = async () => {
+    setExporting(true);
+    setError(null);
+    setExportDone(false);
+    try {
+      await exportMyData();
+      setExportDone(true);
+    } catch (caught) {
+      setError(toUserMessage(caught));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const doSignOut = async () => {
     setSigningOut(true);
@@ -57,6 +75,26 @@ export default function Profile() {
           value={profile?.units === "imperial" ? "Pounds and feet" : "Kilograms and centimetres"}
         />
         <Row label="Currency" value={profile?.currency ?? "—"} last />
+      </Card>
+      <Card>
+        <AppText variant="overline" color="textMuted">
+          Your data
+        </AppText>
+        <AppText color="textMuted">
+          Download a copy of everything Goal4Me stores about you, or delete your account for good.
+        </AppText>
+        {exportDone ? <Banner tone="success" message="Your data file is ready." /> : null}
+        <Button
+          label="Download my data"
+          variant="secondary"
+          loading={exporting}
+          onPress={() => void doExport()}
+        />
+        <Button
+          label="Delete account"
+          variant="ghost"
+          onPress={() => router.push("/account/delete")}
+        />
       </Card>
       <Button label="Sign out" variant="secondary" loading={signingOut} onPress={confirmSignOut} />
       <AppText variant="caption" color="textSubtle">

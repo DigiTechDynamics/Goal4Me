@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  bodyMetricSchema,
   isoDate,
   paynowCheckoutSchema,
+  PHOTO_MAX_BYTES,
+  progressPhotoSchema,
   quizAnswersSchema,
   savingsGoalSchema,
   transactionSchema,
@@ -116,5 +119,34 @@ describe("paynowCheckoutSchema", () => {
     expect(
       paynowCheckoutSchema.safeParse({ method: "web", planId: "premium_weekly" }).success,
     ).toBe(true);
+  });
+});
+
+describe("tracking", () => {
+  const id = "0b7c1d4e-9f7a-4c1e-8a57-2f8f1f1b6a10";
+
+  it("accepts a weigh-in with optional measurements and rejects impossible values", () => {
+    expect(
+      bodyMetricSchema.safeParse({ id, measuredOn: "2026-10-28", weightKg: 72.4 }).success,
+    ).toBe(true);
+    expect(
+      bodyMetricSchema.safeParse({ id, measuredOn: "2026-10-28", weightKg: 72, waistCm: 5 })
+        .success,
+    ).toBe(false);
+  });
+
+  it("limits progress photos to the bucket's size and types", () => {
+    const photo = {
+      id,
+      takenOn: "2026-10-28",
+      pose: "front",
+      mimeType: "image/jpeg",
+      sizeBytes: 1,
+    };
+    expect(progressPhotoSchema.safeParse(photo).success).toBe(true);
+    expect(
+      progressPhotoSchema.safeParse({ ...photo, sizeBytes: PHOTO_MAX_BYTES + 1 }).success,
+    ).toBe(false);
+    expect(progressPhotoSchema.safeParse({ ...photo, mimeType: "image/gif" }).success).toBe(false);
   });
 });

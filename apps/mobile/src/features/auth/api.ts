@@ -2,6 +2,7 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
+import { clearLocalData } from "@/features/account/localData";
 import { logger } from "@/lib/logger";
 import { getSupabase } from "@/lib/supabase";
 import type { SignInInput, SignUpInput } from "./validation";
@@ -83,7 +84,11 @@ export async function signInWithGoogle(): Promise<void> {
   if (exchangeError) throw exchangeError;
 }
 
+/** Signs out everywhere this session is used and wipes cached personal data. */
 export async function signOut(): Promise<void> {
-  const { error } = await getSupabase().auth.signOut();
+  const db = getSupabase();
+  const userId = (await db.auth.getSession()).data.session?.user.id ?? null;
+  const { error } = await db.auth.signOut();
   if (error) throw error;
+  await clearLocalData({ userId, dropUnsyncedWorkouts: false });
 }

@@ -41,7 +41,16 @@
           "imageWidth": 76
         }
       ],
-      "expo-video"
+      "expo-video",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Goal4Me uses your photos so you can add progress pictures. They stay private to your account.",
+          "cameraPermission": "Goal4Me uses the camera so you can take progress pictures. They stay private to your account.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,
