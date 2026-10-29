@@ -1,9 +1,10 @@
 import { CANVAS, SEGMENT, type Point, type Skeleton, type View } from "./skeleton";
 
 /**
- * Turns a posed skeleton into the filled shapes of an athlete: tapered limbs
- * with rounded joints, a shaped torso, head with hair, clothing and shoes.
- * Pure geometry (no React), so it is unit-tested and the renderer stays thin.
+ * Turns a posed skeleton into the filled shapes of an athlete: muscled,
+ * tapered limbs with rounded joints, a shaped torso, head with hair, face and
+ * ears, hands, clothing and shoes, all with a dark outline. Pure geometry (no
+ * React), so it is unit-tested and the renderer stays thin.
  *
  * Every body part is a "capsule": a tapered bar between two points with a
  * round cap at each end (radius r1 at `a`, r2 at `b`). Overlapping capsules
@@ -39,16 +40,20 @@ export const PALETTE = {
   shoe: "#EEF1F5",
   shoeShade: "#AEB6C4",
   sole: "#5A6375",
+  outline: "#0B0E14",
 } as const;
+
+/** How far the outline shows around the figure and around near limbs, in canvas units. */
+const OUTLINE = 0.5;
 
 /** Limb thickness (radius at the start and end of each segment), in canvas units. */
 const WIDTH = {
-  upperArm: [2.35, 1.85],
-  forearm: [1.8, 1.35],
-  hand: 1.65,
-  thigh: [3.3, 2.35],
-  shin: [2.25, 1.45],
-  neck: 1.5,
+  upperArm: [2.45, 1.75],
+  forearm: [1.95, 1.3],
+  hand: 1.35,
+  thigh: [3.4, 2.25],
+  shin: [2.15, 1.35],
+  neck: 1.9,
   head: SEGMENT.headRadius,
 } as const;
 
@@ -75,6 +80,14 @@ const capsule = (a: Point, b: Point, r1: number, r2: number, fill: string): Caps
 });
 const disc = (c: Point, r: number, fill: string): Disc => ({ kind: "disc", c, r, fill });
 
+/** The same shapes grown by `by` and filled dark: drawn first, it outlines them. */
+const outlineOf = (shapes: Shape[], by = OUTLINE): Shape[] =>
+  shapes.map((s) =>
+    s.kind === "disc"
+      ? disc(s.c, s.r + by, PALETTE.outline)
+      : capsule(s.a, s.b, s.r1 + by, s.r2 + by, PALETTE.outline),
+  );
+
 /** Keeps a point from sinking below the floor line (e.g. toes in a plank). */
 const aboveFloor = (p: Point): Point => ({ x: p.x, y: Math.min(p.y, CANVAS.floor) });
 
@@ -91,12 +104,17 @@ function arm(s: Skeleton, side: Side, shade: boolean): Shape[] {
   const top = shade ? PALETTE.topShade : PALETTE.top;
   const [u1, u2] = WIDTH.upperArm;
   const [f1, f2] = WIDTH.forearm;
+  const along = unit(sub(hand, elbow));
   return [
     capsule(shoulder, elbow, u1, u2, skin),
+    // Biceps and the forearm muscle just below the elbow.
+    capsule(lerp(shoulder, elbow, 0.3), lerp(shoulder, elbow, 0.75), u1 + 0.15, u2 + 0.3, skin),
     capsule(elbow, hand, f1, f2, skin),
-    disc(hand, WIDTH.hand, skin),
-    // Short sleeve over the top of the upper arm.
-    capsule(shoulder, lerp(shoulder, elbow, 0.42), u1 + 0.45, u1 + 0.25, top),
+    capsule(elbow, lerp(elbow, hand, 0.45), f1 + 0.1, f1 - 0.15, skin),
+    // Hand: a palm carrying on from the wrist, fingers together.
+    capsule(hand, add(hand, along, 2.1), WIDTH.hand, 1.1, skin),
+    // Short sleeve over the shoulder and the top of the upper arm.
+    capsule(shoulder, lerp(shoulder, elbow, 0.42), u1 + 0.55, u1 + 0.25, top),
   ];
 }
 
@@ -110,20 +128,54 @@ function leg(s: Skeleton, side: Side, view: View, shade: boolean): Shape[] {
   const [t1, t2] = WIDTH.thigh;
   const [s1, s2] = WIDTH.shin;
 
-  // Side view: the trainer points forward from the ankle, square to the shin.
-  // Front view: we see the toe cap, so it sits just under and outside the ankle.
+  const thighDir = unit(sub(knee, hip));
   const shin = unit(sub(foot, knee));
-  const toe =
-    view === "side"
-      ? aboveFloor(add(foot, forwardOf(shin), 3.6))
-      : aboveFloor({ x: foot.x + (side === "near" ? 1.4 : -1.4), y: foot.y + 0.6 });
-  const heel = view === "side" ? aboveFloor(add(foot, forwardOf(shin), -1)) : foot;
+  const front = view === "side" ? forwardOf(thighDir) : { x: 0, y: 0 };
+  const calfSide = view === "side" ? forwardOf(shin) : { x: 0, y: 0 };
+
+  // Side view: the trainer points forward from the ankle, square to the shin.
+  // A standing foot lifted off the floor (calf raise, jump) points its toes
+  // down, so heels rise and toes stay on, or reach for, the floor.
+  // Front view: we see the toe cap, so it sits just under and outside the ankle.
+  let toe: Point;
+  let heel: Point;
+  if (view === "side") {
+    const ahead = forwardOf(shin);
+    const gap = CANVAS.floor - foot.y;
+    const standing = shin.y > 0.6;
+    const tilt = standing && gap > 0.3 ? Math.min(1.2, Math.asin(Math.min(1, gap / 3.6))) : 0;
+    const toeDir = unit(
+      add({ x: ahead.x * Math.cos(tilt), y: ahead.y * Math.cos(tilt) }, shin, Math.sin(tilt)),
+    );
+    toe = aboveFloor(add(foot, toeDir, 3.6));
+    heel = aboveFloor(add(foot, toeDir, -1));
+  } else {
+    toe = aboveFloor({ x: foot.x + (side === "near" ? 1.4 : -1.4), y: foot.y + 0.6 });
+    heel = foot;
+  }
 
   return [
     capsule(hip, knee, t1, t2, skin),
+    // Quads bulge at the front of the thigh, the calf at the back of the shin.
+    capsule(
+      add(lerp(hip, knee, 0.35), front, 0.5),
+      add(lerp(hip, knee, 0.8), front, 0.45),
+      t1 - 0.2,
+      t2 + 0.15,
+      skin,
+    ),
     capsule(knee, foot, s1, s2, skin),
+    capsule(
+      add(lerp(knee, foot, 0.18), calfSide, -0.75),
+      add(lerp(knee, foot, 0.55), calfSide, -0.35),
+      s1 + 0.25,
+      s2 + 0.35,
+      skin,
+    ),
+    // Knee cap.
+    disc(add(knee, front, 0.35), s1 + 0.2, skin),
     // Shorts reach about 40% down the thigh.
-    capsule(hip, lerp(hip, knee, 0.42), t1 + 0.35, t1 + 0.1, shorts),
+    capsule(hip, lerp(hip, knee, 0.42), t1 + 0.45, t1 + 0.15, shorts),
     capsule(heel, toe, 1.75, 1.35, shoe),
     // Sole line along the bottom of the trainer, resting on (not under) the floor.
     capsule(sole(heel), sole(toe), 0.7, 0.6, PALETTE.sole),
@@ -131,24 +183,31 @@ function leg(s: Skeleton, side: Side, view: View, shade: boolean): Shape[] {
 }
 
 function torso(s: Skeleton, view: View): Shape[] {
-  const spine = unit(sub(s.neck, s.hip));
-  const chest = lerp(s.hip, s.neck, 0.72);
+  const spineUp = unit(sub(s.neck, s.hip));
   const front = view === "front";
-  // From the front the chest is broad; from the side it has depth, a bit less.
-  const waist = front ? 4.3 : 3.6;
-  const chestR = front ? 5.6 : 4.5;
+  // From the front the chest is broad and tapers to the waist; from the side
+  // it has depth, a bit less, and follows the curve of the spine.
+  const waist = front ? 4.0 : 3.5;
+  const chestR = front ? 5.7 : 4.6;
   const pelvisR = front ? 4.6 : 3.8;
-  const neckBase = add(s.neck, spine, -0.6);
+  const chest = lerp(s.spine, s.neck, 0.45);
+  const neckBase = add(s.neck, spineUp, -0.6);
   const shapes: Shape[] = [
-    capsule(s.neck, add(s.head, spine, -WIDTH.head * 0.6), WIDTH.neck, WIDTH.neck, PALETTE.skin),
-    capsule(s.hip, chest, waist, chestR, PALETTE.top),
-    capsule(chest, neckBase, chestR, front ? 4.4 : 3.4, PALETTE.top),
+    capsule(s.neck, add(s.head, spineUp, -WIDTH.head * 0.6), WIDTH.neck, WIDTH.neck, PALETTE.skin),
+    capsule(s.hip, s.spine, waist, waist + 0.4, PALETTE.top),
+    capsule(s.spine, chest, waist + 0.4, chestR, PALETTE.top),
+    capsule(chest, neckBase, chestR, front ? 4.6 : 3.4, PALETTE.top),
     disc(s.hip, pelvisR, PALETTE.shorts),
   ];
   if (front) {
-    // Shoulders and hips are spread apart from the front: round them off.
-    shapes.push(capsule(s.shoulderFar, s.shoulderNear, 2.4, 2.4, PALETTE.top));
+    // Shoulders and hips are spread apart from the front: round them off,
+    // with a deltoid cap (under the sleeve) at each shoulder.
+    shapes.push(capsule(s.shoulderFar, s.shoulderNear, 2.6, 2.6, PALETTE.top));
+    shapes.push(disc(s.shoulderNear, 2.9, PALETTE.top), disc(s.shoulderFar, 2.9, PALETTE.top));
     shapes.push(capsule(s.hipFar, s.hipNear, 3.4, 3.4, PALETTE.shorts));
+  } else {
+    // Glutes at the back of the hips.
+    shapes.push(disc(add(s.hip, forwardOf(spineUp), 1.3), 3.5, PALETTE.shorts));
   }
   return shapes;
 }
@@ -157,39 +216,92 @@ function head(s: Skeleton, view: View): Shape[] {
   const up = unit(sub(s.head, s.neck));
   const r = WIDTH.head;
   if (view === "front") {
+    const side = { x: -up.y, y: up.x };
     return [
+      // Ears, then the face over them, then hair on top.
+      disc(add(s.head, side, r * 0.86), 1.1, PALETTE.skinShade),
+      disc(add(s.head, side, -r * 0.86), 1.1, PALETTE.skinShade),
       disc(add(s.head, up, 1.5), r * 1.02, PALETTE.hair),
       disc(add(s.head, up, -0.45), r * 0.86, PALETTE.skin),
-      disc(add({ x: s.head.x - 1.5, y: s.head.y }, up, -0.2), 0.42, PALETTE.hair),
-      disc(add({ x: s.head.x + 1.5, y: s.head.y }, up, -0.2), 0.42, PALETTE.hair),
+      // Jaw, a little narrower than the cheeks.
+      capsule(add(s.head, up, -1), add(s.head, up, -2.6), r * 0.72, r * 0.48, PALETTE.skin),
+      disc(add(add(s.head, side, -1.5), up, -0.2), 0.42, PALETTE.hair),
+      disc(add(add(s.head, side, 1.5), up, -0.2), 0.42, PALETTE.hair),
+      // Brows and mouth.
+      capsule(
+        add(add(s.head, side, -2.1), up, 0.75),
+        add(add(s.head, side, -0.9), up, 0.85),
+        0.22,
+        0.22,
+        PALETTE.hair,
+      ),
+      capsule(
+        add(add(s.head, side, 0.9), up, 0.85),
+        add(add(s.head, side, 2.1), up, 0.75),
+        0.22,
+        0.22,
+        PALETTE.hair,
+      ),
+      capsule(
+        add(add(s.head, side, -0.8), up, -2.2),
+        add(add(s.head, side, 0.8), up, -2.2),
+        0.22,
+        0.22,
+        PALETTE.skinShade,
+      ),
     ];
   }
   const forward = forwardOf({ x: -up.x, y: -up.y });
+  const face = add(add(s.head, forward, 0.75), up, -0.35);
   return [
     // Hair sits towards the back and top; the face shows at the front.
     disc(add(add(s.head, forward, -1.6), up, 1.1), r * 1.0, PALETTE.hair),
-    disc(add(add(s.head, forward, 0.75), up, -0.35), r * 0.84, PALETTE.skin),
+    disc(face, r * 0.84, PALETTE.skin),
+    // Jaw and chin, sloping down to the front.
+    capsule(
+      add(face, up, -0.5),
+      add(add(face, forward, 1.6), up, -2.6),
+      r * 0.7,
+      1.5,
+      PALETTE.skin,
+    ),
+    // Ear at the side of the head.
+    disc(add(add(s.head, forward, -1.3), up, -0.4), 1.0, PALETTE.skinShade),
     // Nose tip, so it's always clear which way the athlete faces.
-    disc(add(add(s.head, forward, 0.75 + r * 0.84), up, -0.5), 0.8, PALETTE.skin),
-    // Eye, towards the front of the face.
+    disc(add(add(s.head, forward, 0.75 + r * 0.84), up, -0.5), 0.85, PALETTE.skin),
+    // Eye and brow, towards the front of the face.
     disc(add(add(s.head, forward, 0.75 + r * 0.45), up, 0.3), 0.42, PALETTE.hair),
+    capsule(
+      add(add(s.head, forward, 0.75 + r * 0.2), up, 1.25),
+      add(add(s.head, forward, 0.75 + r * 0.7), up, 1.1),
+      0.24,
+      0.24,
+      PALETTE.hair,
+    ),
   ];
 }
 
 /**
- * Shapes in paint order: far limbs first (shaded, as they're further from
- * the light), then the body, then near limbs on top. From the front both
- * sides are equally lit.
+ * Shapes in paint order: an outline around the whole figure, far limbs
+ * (shaded, as they're further from the light), then the body, then near
+ * limbs on top with their own outline so they stand out against the body.
+ * From the front both sides are equally lit.
  */
 export function bodyShapes(s: Skeleton, view: View): Shape[] {
   const shadeFar = view === "side";
+  const far = [...arm(s, "far", shadeFar), ...leg(s, "far", view, shadeFar)];
+  const middle = [...torso(s, view), ...head(s, view)];
+  const nearLeg = leg(s, "near", view, false);
+  const nearArm = arm(s, "near", false);
+  const all = [...far, ...middle, ...nearLeg, ...nearArm];
   return [
-    ...arm(s, "far", shadeFar),
-    ...leg(s, "far", view, shadeFar),
-    ...torso(s, view),
-    ...head(s, view),
-    ...leg(s, "near", view, false),
-    ...arm(s, "near", false),
+    ...outlineOf(all),
+    ...far,
+    ...middle,
+    ...outlineOf(nearLeg, 0.35),
+    ...nearLeg,
+    ...outlineOf(nearArm, 0.35),
+    ...nearArm,
   ];
 }
 

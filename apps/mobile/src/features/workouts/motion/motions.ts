@@ -106,8 +106,8 @@ const TABLETOP: Pose = {
 export const MOTIONS: Record<string, ExerciseMotion> = {
   // --- Warm-up and cardio ----------------------------------------------------
   "march-in-place": motion("side", "hip", 0.45, [
-    pose(STAND, { legNear: [80, 0], armNear: [-30, -15], armFar: [40, 90] }),
-    pose(STAND, { legFar: [80, 0], armNear: [40, 90], armFar: [-30, -15] }),
+    pose(STAND, { legNear: [80, 0], armNear: [-30, -10], armFar: [35, 120] }),
+    pose(STAND, { legFar: [80, 0], armNear: [35, 120], armFar: [-30, -10] }),
   ]),
   "arm-circles": motion("front", "hip", 0.28, [
     pose(FRONT_STAND, frontArms([90, 90])),
@@ -274,17 +274,17 @@ export const MOTIONS: Record<string, ExerciseMotion> = {
     "handNear",
     0.8,
     [
-      // Hands on the seat edge behind, hips in front of the chair. Top: arms
-      // straight. Bottom: elbows bent straight back to about 90 degrees, hips
-      // sinking towards the floor. Leg angles are solved so the hands stay on
-      // the seat and the feet stay planted.
-      { torso: 180, armNear: [-12, -6], armFar: [-10, -5], legNear: [72, 8], legFar: [70, 9] },
+      // Hands on the seat edge behind, hips clear in front of the chair. Top:
+      // arms straight. Bottom: elbows bent back, hips sinking towards the
+      // floor. Leg angles are solved so the hands stay on the seat and the
+      // feet stay planted.
+      { torso: 180, armNear: [-22, -14], armFar: [-20, -13], legNear: [72, 10], legFar: [70, 11] },
       {
-        torso: 178,
-        armNear: [-95, -3],
-        armFar: [-93, -2],
-        legNear: [120, -18],
-        legFar: [118, -17],
+        torso: 176,
+        armNear: [-68, -4],
+        armFar: [-66, -3],
+        legNear: [97, -4],
+        legFar: [95, -3],
       },
     ],
     { kind: "chair", joint: "handNear", side: "back" },
@@ -400,7 +400,8 @@ export const MOTIONS: Record<string, ExerciseMotion> = {
       legFar: [90, 90],
     },
   ]),
-  "calf-raise": motion("side", "footNear", 0.6, [STAND, pose(STAND, { lift: 4 })]),
+  // Heels rise and the toes stay down (see the trainer tilt in body.ts).
+  "calf-raise": motion("side", "footNear", 0.6, [STAND, pose(STAND, { lift: 2.6 })]),
   squat: motion("side", "footNear", 0.8, [STAND, DEEP_SQUAT]),
   "wall-sit": motion(
     "side",
@@ -432,41 +433,52 @@ export const MOTIONS: Record<string, ExerciseMotion> = {
   ]),
 
   // --- Mobility and stretches ---------------------------------------------------
+  // Cow: belly drops, chest and head lift. Cat: back rounds up, head tucks.
   "cat-cow": motion("side", "kneeNear", 1.2, [
-    pose(ALL_FOURS, { torso: 96, head: 35 }),
-    pose(ALL_FOURS, { torso: 84, head: -35 }),
+    pose(ALL_FOURS, { arch: -30, head: 30 }),
+    pose(ALL_FOURS, { arch: 32, head: -40 }),
   ]),
+  // Hips sit back on the heels, knees and shins on the floor, chest resting
+  // on the thighs, forehead down and arms reaching forward along the floor.
   "childs-pose": motion("side", "kneeNear", 1.6, [
     {
-      torso: 62,
-      head: 10,
-      armNear: [84, 90],
-      armFar: [86, 92],
-      legNear: [80, -92],
-      legFar: [82, -90],
+      torso: 85,
+      head: 15,
+      arch: 6,
+      armNear: [80, 82],
+      armFar: [82, 84],
+      legNear: [66, -90],
+      legFar: [68, -88],
     },
     {
-      torso: 66,
-      head: 10,
-      armNear: [86, 92],
-      armFar: [88, 94],
-      legNear: [80, -92],
-      legFar: [82, -90],
+      torso: 82,
+      head: 15,
+      arch: 10,
+      armNear: [78, 80],
+      armFar: [80, 82],
+      legNear: [66, -90],
+      legFar: [68, -88],
     },
   ]),
+  // Standing forward fold: hips push back, legs straight, hands slide down
+  // the shins towards the ankles.
   "hamstring-stretch": motion("side", "footNear", 1.5, [
     STAND,
     pose(STAND, {
-      torso: 100,
-      armNear: [0, 0],
-      armFar: [3, 3],
-      legNear: [-6, -6],
-      legFar: [-8, -8],
+      torso: 75,
+      head: 15,
+      arch: 8,
+      armNear: [-15, -20],
+      armFar: [-12, -17],
+      legNear: [8, 8],
+      legFar: [6, 6],
     }),
   ]),
+  // Standing on the far leg, near heel pulled to the glutes, knees together;
+  // the near hand holds the ankle and the far arm reaches forward for balance.
   "quad-stretch": motion("side", "footFar", 1.4, [
-    pose(STAND, { legNear: [-5, -168], armNear: [-35, -20], armFar: [75, 85] }),
-    pose(STAND, { legNear: [-8, -170], armNear: [-38, -22], armFar: [75, 85] }),
+    pose(STAND, { torso: 184, legNear: [-22, -172], armNear: [-13, -13], armFar: [75, 85] }),
+    pose(STAND, { torso: 185, legNear: [-24, -173], armNear: [-14, -14], armFar: [77, 86] }),
   ]),
   "cobra-stretch": motion("side", "hip", 1.2, [
     { torso: 92, armNear: [-40, 80], armFar: [-38, 82], legNear: [-90, -90], legFar: [-91, -91] },
@@ -484,17 +496,19 @@ export const MOTIONS: Record<string, ExerciseMotion> = {
     "hip",
     1.5,
     [
+      // Lying on the back, hips close to the wall, legs straight up it and
+      // arms resting on the floor by the sides.
       {
         torso: -90,
-        armNear: [-60, -60],
-        armFar: [60, 60],
+        armNear: [92, 92],
+        armFar: [94, 94],
         legNear: [178, 178],
         legFar: [176, 176],
       },
       {
         torso: -90,
-        armNear: [-62, -62],
-        armFar: [62, 62],
+        armNear: [92, 92],
+        armFar: [94, 94],
         legNear: [174, 174],
         legFar: [172, 172],
       },

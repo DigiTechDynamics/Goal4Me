@@ -22,6 +22,8 @@ export interface Pose {
   legFar: Limb;
   /** Height above the floor of the lowest point (jumps). */
   lift?: number;
+  /** Spine curve: positive rounds the back (cat), negative arches it (cow). */
+  arch?: number;
 }
 
 export type View = "side" | "front";
@@ -61,7 +63,7 @@ export type JointName =
 
 export type Point = { x: number; y: number };
 export type Skeleton = Record<
-  JointName | "shoulderNear" | "shoulderFar" | "hipNear" | "hipFar",
+  JointName | "spine" | "shoulderNear" | "shoulderFar" | "hipNear" | "hipFar",
   Point
 >;
 
@@ -79,18 +81,35 @@ export function solve(pose: Pose, view: View): Skeleton {
   const hip = { x: 0, y: 0 };
   const neck = step(hip, pose.torso, SEGMENT.torso);
   const head = step(neck, pose.torso + (pose.head ?? 0), SEGMENT.neck + SEGMENT.headRadius);
-  // Front view spreads shoulders and hips; side view stacks them.
+  // Front view spreads shoulders and hips across the body (so a figure lying
+  // on its side stacks them, near side on top); side view stacks them.
   const spread = view === "front" ? 1 : 0;
-  const shoulderNear = { x: neck.x + 5 * spread, y: neck.y + 2 * spread };
-  const shoulderFar = { x: neck.x - 5 * spread, y: neck.y + 2 * spread };
-  const hipNear = { x: hip.x + 3.5 * spread, y: hip.y };
-  const hipFar = { x: hip.x - 3.5 * spread, y: hip.y };
+  const up = step({ x: 0, y: 0 }, pose.torso, 1);
+  const across = { x: -up.y, y: up.x };
+  const shoulderNear = {
+    x: neck.x + (5 * across.x - 2 * up.x) * spread,
+    y: neck.y + (5 * across.y - 2 * up.y) * spread,
+  };
+  const shoulderFar = {
+    x: neck.x + (-5 * across.x - 2 * up.x) * spread,
+    y: neck.y + (-5 * across.y - 2 * up.y) * spread,
+  };
+  const hipNear = { x: hip.x + 3.5 * across.x * spread, y: hip.y + 3.5 * across.y * spread };
+  const hipFar = { x: hip.x - 3.5 * across.x * spread, y: hip.y - 3.5 * across.y * spread };
+  // Mid-back, pushed towards the back (side view) by the spine curve.
+  const back = { x: up.y, y: -up.x };
+  const curve = (pose.arch ?? 0) * 0.12;
+  const spine = {
+    x: (hip.x + neck.x) / 2 + back.x * curve,
+    y: (hip.y + neck.y) / 2 + back.y * curve,
+  };
   const elbowNear = step(shoulderNear, pose.armNear[0], SEGMENT.upperArm);
   const elbowFar = step(shoulderFar, pose.armFar[0], SEGMENT.upperArm);
   const kneeNear = step(hipNear, pose.legNear[0], SEGMENT.thigh);
   const kneeFar = step(hipFar, pose.legFar[0], SEGMENT.thigh);
   return {
     hip,
+    spine,
     neck,
     head,
     shoulderNear,
@@ -123,6 +142,7 @@ export function blend(a: Pose, b: Pose, t: number): Pose {
     legNear: lerpLimb(a.legNear, b.legNear, t),
     legFar: lerpLimb(a.legFar, b.legFar, t),
     lift: lerp(a.lift ?? 0, b.lift ?? 0, t),
+    arch: lerp(a.arch ?? 0, b.arch ?? 0, t),
   };
 }
 
