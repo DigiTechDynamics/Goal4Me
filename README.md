@@ -112,6 +112,40 @@ supabase db reset         # applies supabase/migrations
 
 Copy the `anon key` printed by `supabase start` into `.env`.
 
+### Sign-up email and Google sign-in (local)
+
+Without these, sign-up emails only land in Mailpit (http://localhost:54324)
+and "Continue with Google" fails with "provider is not enabled".
+
+Both are off by default, so a fresh setup keeps working with Mailpit. To
+turn them on, fill in the values below, set `enabled = true` under
+`[auth.email.smtp]` and/or `[auth.external.google]` in
+`supabase/config.toml`, then restart:
+
+```bash
+cp supabase/.env.example supabase/.env   # fill in the values below
+supabase stop && supabase start          # config is read at start
+```
+
+1. **Email from Gmail**: turn on 2-Step Verification for
+   digitaltechdynamics@gmail.com, create an App Password (Google Account →
+   Security → App passwords) and set it as `SMTP_PASS`. Gmail caps sending at
+   about 500 emails a day, so move to a domain sender (Resend, Brevo, Amazon
+   SES) before launch.
+2. **Google sign-in**: in Google Cloud Console create an OAuth consent screen
+   (External, add your test users), then an OAuth client ID of type _Web
+   application_ with the authorised redirect URI
+   `http://127.0.0.1:54321/auth/v1/callback`. Put its ID and secret in
+   `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+
+For the hosted project, set the same values in the Supabase dashboard
+(Authentication → Emails → SMTP Settings, and Authentication → Sign In /
+Providers → Google), with the redirect URI
+`https://<project-ref>.supabase.co/auth/v1/callback` added to the Google
+client, and the app's URLs under Authentication → URL Configuration. The
+native apps also need iOS and Android OAuth clients in the same Google
+Cloud project.
+
 ### Run the SQL tests without Supabase
 
 CI applies the migrations to a plain Postgres 16 using a small stub of the

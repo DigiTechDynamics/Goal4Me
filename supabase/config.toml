@@ -16,7 +16,12 @@ port = 54323
 
 [auth]
 site_url = "http://localhost:8081"
-additional_redirect_urls = ["goal4me://auth-callback", "http://localhost:8081"]
+additional_redirect_urls = [
+  "goal4me://auth-callback",
+  "goal4me://auth-callback?**",
+  "http://localhost:8081",
+  "http://localhost:8081/**",
+]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 minimum_password_length = 8
@@ -24,6 +29,37 @@ minimum_password_length = 8
 [auth.email]
 enable_signup = true
 enable_confirmations = true
+
+# Real email delivery through Gmail. Without it, local emails are only
+# caught by Mailpit (http://localhost:54324) and never reach an inbox.
+# Needs an App Password for the Gmail account (Google Account → Security →
+# 2-Step Verification → App passwords), set as SMTP_PASS in supabase/.env,
+# then set enabled = true and restart. Left off, emails stay in Mailpit.
+# Gmail allows about 500 emails a day; use a domain sender (e.g. Resend,
+# Brevo) before launch.
+[auth.email.smtp]
+enabled = false
+host = "smtp.gmail.com"
+port = 587
+user = "env(SMTP_USER)"
+pass = "env(SMTP_PASS)"
+admin_email = "env(SMTP_USER)"
+sender_name = "Goal4Me"
+
+# The CLI default of 2 emails an hour is too low once real email is on.
+[auth.rate_limit]
+email_sent = 30
+
+# "Continue with Google". Create an OAuth client (Web application) in
+# Google Cloud Console → APIs & Services → Credentials, add
+# http://127.0.0.1:54321/auth/v1/callback as an authorised redirect URI,
+# put its ID and secret in supabase/.env, then set enabled = true and restart.
+[auth.external.google]
+enabled = false
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
+redirect_uri = "http://127.0.0.1:54321/auth/v1/callback"
+skip_nonce_check = false
 
 [storage]
 file_size_limit = "10MiB"
