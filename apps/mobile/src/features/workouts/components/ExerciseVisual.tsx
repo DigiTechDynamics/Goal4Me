@@ -3,17 +3,42 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import { StyleSheet, View } from "react-native";
 import { AppText } from "@/components/ui";
 import { env } from "@/lib/env";
+import { MOTIONS } from "../motion/motions";
+import { ExerciseMotion } from "./ExerciseMotion";
 import { colors, radii, spacing } from "@/theme/tokens";
 
 /**
- * Looping, muted demo clip of the exercise. Until the stock videos are
- * licensed (no `video_path` or no CDN configured) it shows a styled card
- * with the exercise's initials instead; form tips are listed under it.
+ * How the exercise is demonstrated, best first:
+ * 1. a looping, muted licensed video clip (`video_path` set and a CDN configured);
+ * 2. otherwise our original animated figure for the exercise's slug;
+ * 3. otherwise (a new exercise with neither yet) a card with its initials.
+ * Form tips are listed under it either way. `playing` pauses the animation
+ * while the workout is paused.
  */
-export function ExerciseVisual({ exercise }: { exercise: ExerciseInfo }) {
+export function ExerciseVisual({
+  exercise,
+  playing = true,
+}: {
+  exercise: ExerciseInfo;
+  playing?: boolean;
+}) {
   const cdn = env?.EXPO_PUBLIC_VIDEO_CDN_URL;
   const uri = cdn && exercise.videoPath ? `${cdn.replace(/\/$/, "")}/${exercise.videoPath}` : null;
-  return uri ? <ExerciseVideo key={uri} uri={uri} /> : <ExerciseCard exercise={exercise} />;
+  if (uri) return <ExerciseVideo key={uri} uri={uri} />;
+  const motion = MOTIONS[exercise.slug];
+  if (motion) {
+    return (
+      <View
+        style={[styles.media, styles.animation]}
+        accessible
+        accessibilityRole="image"
+        accessibilityLabel={`Animated demonstration of ${exercise.name}`}
+      >
+        <ExerciseMotion key={exercise.slug} motion={motion} playing={playing} />
+      </View>
+    );
+  }
+  return <ExerciseCard exercise={exercise} />;
 }
 
 function ExerciseVideo({ uri }: { uri: string }) {
@@ -59,6 +84,11 @@ const styles = StyleSheet.create({
     borderRadius: radii.xl,
     overflow: "hidden",
     backgroundColor: colors.surface,
+  },
+  animation: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
   },
   card: {
     alignItems: "center",

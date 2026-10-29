@@ -12,6 +12,7 @@ import {
 
 const exercise: ExerciseInfo = {
   id: "e1",
+  slug: "squat",
   name: "Squat",
   difficulty: 2,
   met: 5,
