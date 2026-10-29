@@ -179,12 +179,17 @@ function draft(type: RunSessionType, title: string, segments: RunSegment[]): Dra
   return { type, title, segments, totalSeconds: total(segments) };
 }
 
-function raceDraft(program: WeeklyProgram | SequenceProgram, targetSeconds: number | null): Draft {
+/** The goal run that ends every plan: a real race when a date is set, else a solo time trial. */
+function raceDraft(
+  program: WeeklyProgram | SequenceProgram,
+  goal: Pick<RunSettings, "targetSeconds" | "raceDate">,
+): Draft {
   const km = program.goalMeters / 1000;
   const label = km === 5 ? "5K" : km === 10 ? "10K" : km < 30 ? "half marathon" : "marathon";
-  return draft("race", `Race day: your ${label}`, [
+  const title = goal.raceDate ? `Race day: your ${label}` : `Goal run: your ${label}`;
+  return draft("race", title, [
     { kind: "warmup", seconds: WARMUP + (km > 20 ? 0 : 5 * 60) },
-    { kind: "race", seconds: targetSeconds ?? program.typicalSeconds, open: true },
+    { kind: "race", seconds: goal.targetSeconds ?? program.typicalSeconds, open: true },
     { kind: "cooldown", seconds: COOLDOWN },
   ]);
 }
@@ -200,7 +205,7 @@ function weeklyDrafts(
   week: TemplateWeek,
   days: number,
   intensity: number,
-  targetSeconds: number | null,
+  goal: Pick<RunSettings, "targetSeconds" | "raceDate">,
 ): { long: Draft; others: Draft[] } {
   const quality = draft(
     QUALITY_TYPE[week.quality.kind],
@@ -209,7 +214,7 @@ function weeklyDrafts(
   );
   const long =
     week.long === "race"
-      ? raceDraft(program, targetSeconds)
+      ? raceDraft(program, goal)
       : draft("long", "Long run", [{ kind: "long", seconds: scale(week.long * 60, intensity) }]);
   const easy = (factor: number) =>
     draft("easy", "Easy run", [
@@ -320,7 +325,7 @@ export function buildRunPlan(settings: RunSettings, intensity = 1): RunPlan {
             w,
             raceDay,
             isFinal
-              ? raceDraft(program, settings.targetSeconds)
+              ? raceDraft(program, settings)
               : draft(
                   "run_walk",
                   `Week ${templateWeek} · Run ${runIndex}`,
@@ -361,7 +366,7 @@ export function buildRunPlan(settings: RunSettings, intensity = 1): RunPlan {
         templateWeek,
         Math.min(settings.daysPerWeek, dates.length),
         effort,
-        settings.targetSeconds,
+        settings,
       );
       for (const { date, draft: d } of placeWeek(dates, longDate, long, others)) push(w, date, d);
     });

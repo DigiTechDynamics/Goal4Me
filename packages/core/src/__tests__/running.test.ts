@@ -122,11 +122,16 @@ describe("buildRunPlan", () => {
     expect(plan.sessions).toHaveLength(16);
   });
 
+  it("calls the final run a goal run when there is no race", () => {
+    const plan = buildRunPlan(settings({ program: "5k-to-10k", runDays: [1, 3, 5] }));
+    expect(plan.sessions.at(-1)).toMatchObject({ type: "race", title: "Goal run: your 10K" });
+  });
+
   it("fits the plan so the race lands on race day", () => {
     const raceDate = "2027-02-28"; // a Sunday, 17 weeks out
     const plan = buildRunPlan(settings({ program: "5k-to-10k", raceDate, runDays: [1, 3, 5] }));
     const race = plan.sessions.at(-1)!;
-    expect(race).toMatchObject({ type: "race", date: raceDate });
+    expect(race).toMatchObject({ type: "race", date: raceDate, title: "Race day: your 10K" });
     expect(plan.sessions.every((s) => s.date <= raceDate && s.date >= "2026-11-02")).toBe(true);
     // Far-off race: easy base weeks first, capped at 6.
     expect(plan.weeks).toBe(8 + 6);
