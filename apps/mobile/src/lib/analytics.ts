@@ -22,7 +22,9 @@ export type AnalyticsEvent =
   | { name: "paywall_viewed"; props: { reason: string; platform: string } }
   | { name: "checkout_started"; props: { plan: PlanId; method: string } }
   | { name: "premium_unlocked"; props: { store: string } }
-  | { name: "health_connected"; props: { platform: string } };
+  | { name: "health_connected"; props: { platform: string } }
+  | { name: "running_plan_started"; props: { level: string; goal: string } }
+  | { name: "run_logged"; props: { week: number; rating: string } };
 
 const key = env?.EXPO_PUBLIC_POSTHOG_KEY;
 

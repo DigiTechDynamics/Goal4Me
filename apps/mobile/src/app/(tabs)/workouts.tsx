@@ -83,6 +83,17 @@ export default function Workouts() {
           />
         </>
       )}
+      <Card>
+        <AppText variant="overline" color="brand">
+          Running
+        </AppText>
+        <AppText variant="heading">Become a runner</AppText>
+        <AppText color="textMuted">
+          A plan built around your level and schedule, from your first walk-run to the marathon,
+          plus tips at every stage.
+        </AppText>
+        <Button label="Open running" variant="secondary" onPress={() => router.push("/running")} />
+      </Card>
     </Screen>
   );
 }
