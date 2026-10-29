@@ -2,4 +2,5 @@
 export * from "./billing";
 export * from "./common";
 export * from "./quiz";
+export * from "./running";
 export * from "./tracking";
