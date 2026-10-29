@@ -8,6 +8,10 @@ export type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "ver
 
 export type BmiCategory = "underweight" | "healthy" | "overweight" | "obese";
 
+export type FitnessLevel = "none" | "beginner" | "intermediate" | "advanced";
+
+export type Limitation = "knees" | "back" | "wrists";
+
 export type WorkoutRating = "too_easy" | "just_right" | "too_hard";
 
 export const SEXES = ["female", "male"] as const satisfies readonly Sex[];
@@ -29,3 +33,10 @@ export const WORKOUT_RATINGS = [
   "just_right",
   "too_hard",
 ] as const satisfies readonly WorkoutRating[];
+export const FITNESS_LEVELS = [
+  "none",
+  "beginner",
+  "intermediate",
+  "advanced",
+] as const satisfies readonly FitnessLevel[];
+export const LIMITATIONS = ["knees", "back", "wrists"] as const satisfies readonly Limitation[];
