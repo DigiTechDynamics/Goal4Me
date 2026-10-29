@@ -24,6 +24,8 @@ jobs:
       - run: pnpm format:check
       - run: pnpm typecheck
       - run: pnpm test
+      - name: Content seed is up to date
+        run: pnpm --filter @goal4me/content generate && git diff --exit-code supabase/migrations
 
   database:
     # Applies every migration to a clean Postgres and runs the SQL tests,

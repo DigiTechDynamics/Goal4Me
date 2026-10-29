@@ -15,7 +15,7 @@ end $$;
 
 -- Content created by the service role: one published and one draft exercise.
 insert into public.exercises (slug, name, difficulty, met, is_published) values
-  ('push-up', 'Push-up', 2, 8.0, true),
+  ('test-published', 'Test move', 2, 8.0, true),
   ('draft-move', 'Draft move', 1, 3.0, false);
 
 -- ---- Act as Alice -----------------------------------------------------------
@@ -42,7 +42,8 @@ do $$ declare s record; begin
   assert s.freezes_left = 0, 'freeze should be used';
   assert (select count(*) from public.streaks) = 1, 'Alice sees only her streak';
   assert exists (select 1 from public.achievements where badge = 'first_workout'), 'badge awarded';
-  assert (select count(*) from public.exercises) = 1, 'users only see published content';
+  assert (select count(*) from public.exercises where slug in ('test-published', 'draft-move')) = 1,
+    'users only see published content';
 end $$;
 
 insert into public.workout_sessions (id, user_id, started_at, duration_s)
@@ -102,6 +103,29 @@ do $$ begin
   exception when check_violation then null; end;
 end $$;
 
+-- Seeded content: 4 programmes x 28 days, onboarding starts the programme.
+do $$ begin
+  assert (select count(*) from public.programs where is_published) = 4, 'four programmes seeded';
+  assert (select count(*) from public.program_days) = 112, '28 days each';
+  assert (select count(*) from public.user_programs where is_active) = 1, 'onboarding started a programme';
+end $$;
+
+-- log_workout is idempotent and advances the programme.
+select public.log_workout('bbbbbbbb-0000-0000-0000-000000000001',
+  (select d.id from public.program_days d join public.programs p on p.id = d.program_id
+    where p.slug = 'fat-burn-home' and d.day_number = 1),
+  now() - interval '20 minutes', 900, 120, 'too_easy', 1.0) as first_log \gset
+select public.log_workout('bbbbbbbb-0000-0000-0000-000000000001',
+  (select d.id from public.program_days d join public.programs p on p.id = d.program_id
+    where p.slug = 'fat-burn-home' and d.day_number = 1),
+  now() - interval '20 minutes', 900, 120, 'too_easy', 1.0) as second_log \gset
+-- psql variables don't expand inside $$ bodies, so check them in plain SQL.
+select case when :'first_log'::boolean and not :'second_log'::boolean then 'ok'
+            else (1 / 0)::text end as idempotent_log \gset
+do $$ begin
+  assert (select current_day from public.user_programs where is_active) = 2, 'programme advanced to day 2';
+end $$;
+
 -- ---- Act as Bob -------------------------------------------------------------
 select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', true) as _ \gset
 select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222"}', true) as _ \gset
@@ -135,7 +159,8 @@ delete from auth.users where id = '11111111-1111-1111-1111-111111111111';
 do $$ begin
   assert (select count(*) from public.body_metrics) = 0, 'metrics deleted with the account';
   assert (select count(*) from public.workout_sessions) = 0, 'workouts deleted with the account';
-  assert (select count(*) from public.content_audit_log) = 2, 'content inserts were audited';
+  assert (select count(*) from public.content_audit_log
+           where new_row ->> 'slug' in ('test-published', 'draft-move')) = 2, 'content inserts were audited';
 end $$;
 
 rollback;

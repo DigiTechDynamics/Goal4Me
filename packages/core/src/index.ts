@@ -15,3 +15,4 @@ export * from "./projection";
 export * from "./types";
 export * from "./units";
 export * from "./workout";
+export * from "./workoutPlan";

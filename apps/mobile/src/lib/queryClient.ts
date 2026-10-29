@@ -11,3 +11,13 @@ export const queryClient = new QueryClient({
     mutations: { retry: 0 },
   },
 });
+
+/**
+ * Query results are saved to device storage so the app (including the
+ * day's workout) opens instantly and works offline. Bump `buster` whenever
+ * a cached data shape changes, to discard old caches.
+ */
+export const PERSIST_OPTIONS = {
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  buster: "v1",
+} as const;

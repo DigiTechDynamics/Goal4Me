@@ -1,70 +1,67 @@
-import { PROGRAMS } from "@goal4me/core";
-import { StyleSheet, View } from "react-native";
+import { router } from "expo-router";
+import { StyleSheet } from "react-native";
 import { ErrorView, LoadingView } from "@/components/StateViews";
-import { AppText, Card, Screen } from "@/components/ui";
+import { AppText, Button, Card, Screen } from "@/components/ui";
 import { useUserId } from "@/features/auth/AuthProvider";
-import { useHomeSummary } from "@/features/home/api";
 import { NeedsPlan } from "@/features/home/NeedsPlan";
+import { nextWorkoutDay, useProgramPlan } from "@/features/workouts/api";
+import { ProgramCalendar } from "@/features/workouts/components/ProgramCalendar";
 import { toUserMessage } from "@/lib/errors";
-import { colors, radii, spacing } from "@/theme/tokens";
+import { spacing } from "@/theme/tokens";
 
-/** Workouts tab: the user's programme and the full programme catalogue. */
+/** Workouts tab: the programme calendar and the next workout. */
 export default function Workouts() {
   const userId = useUserId();
-  const summary = useHomeSummary(userId);
+  const plan = useProgramPlan(userId);
 
-  if (summary.isPending) return <LoadingView />;
-  if (summary.isError) {
-    return (
-      <ErrorView message={toUserMessage(summary.error)} onRetry={() => void summary.refetch()} />
-    );
-  }
-  const { goal, program } = summary.data;
+  if (plan.isPending) return <LoadingView />;
+  if (plan.isError)
+    return <ErrorView message={toUserMessage(plan.error)} onRetry={() => void plan.refetch()} />;
+
+  const data = plan.data;
+  const next = data ? nextWorkoutDay(data) : null;
+  const open = (dayId: string) => router.push({ pathname: "/workout/[dayId]", params: { dayId } });
 
   return (
     <Screen>
       <AppText variant="title" accessibilityRole="header" style={styles.title}>
         Workouts
       </AppText>
-      {!goal ? (
+      {!data ? (
         <NeedsPlan />
       ) : (
-        <Card>
-          <AppText variant="overline" color="brand">
-            Your programme
+        <>
+          <Card>
+            <AppText variant="overline" color="brand">
+              {data.programName}
+            </AppText>
+            {data.completedAt || !next ? (
+              <>
+                <AppText variant="heading">Programme complete!</AppText>
+                <AppText color="textMuted">
+                  You finished all {data.durationDays} days. Repeat any workout below.
+                </AppText>
+              </>
+            ) : (
+              <>
+                <AppText variant="heading">
+                  Day {next.dayNumber}: {next.title.replace(/^Week \d+: /, "")}
+                </AppText>
+                <AppText color="textMuted">
+                  About {data.minutesPerSession} minutes · no equipment
+                </AppText>
+                <Button label="Start workout" onPress={() => open(next.id)} />
+              </>
+            )}
+          </Card>
+          <AppText variant="overline" color="textMuted">
+            Your {data.durationDays}-day plan · {data.completedDayIds.length} done
           </AppText>
-          <AppText variant="heading">{program?.name ?? "Being prepared"}</AppText>
-          <AppText color="textMuted">
-            {goal.daysPerWeek} workouts a week, {goal.minutesPerSession} minutes each.
-          </AppText>
-          <AppText variant="caption" color="textSubtle">
-            Guided workouts with video and timers are coming in the next update.
-          </AppText>
-        </Card>
+          <ProgramCalendar plan={data} nextDayId={next?.id ?? null} onOpen={open} />
+        </>
       )}
-      <AppText variant="overline" color="textMuted">
-        All programmes
-      </AppText>
-      {Object.entries(PROGRAMS).map(([slug, info]) => (
-        <View key={slug} style={styles.program}>
-          <AppText variant="bodyStrong">{info.name}</AppText>
-          <AppText variant="caption" color="textMuted">
-            28 days{info.lowImpact ? " · low impact" : ""}
-          </AppText>
-        </View>
-      ))}
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  title: { paddingTop: spacing.md },
-  program: {
-    padding: spacing.lg,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 2,
-  },
-});
+const styles = StyleSheet.create({ title: { paddingTop: spacing.md } });
