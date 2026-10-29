@@ -1,20 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { bodyShapes, capsulePath, floorShadow, PALETTE } from "../motion/body";
+import { bodyShapes, capsulePath, floorShadow, PALETTE, smoothPath } from "../motion/body";
 import { MOTIONS } from "../motion/motions";
-import { CANVAS, frameAt, framing } from "../motion/skeleton";
+import { frameAt } from "../motion/playback";
+import { CANVAS, framing } from "../motion/skeleton";
 
 const NUMBER = /-?\d+(\.\d+)?/g;
 
 describe("athlete figure", () => {
   it("draws a tapered capsule as two tangents and two arcs", () => {
-    const d = capsulePath({
-      kind: "capsule",
-      a: { x: 0, y: 0 },
-      b: { x: 10, y: 0 },
-      r1: 2,
-      r2: 1,
-      fill: "#000",
-    });
+    const d = capsulePath({ x: 0, y: 0 }, { x: 10, y: 0 }, 2, 1);
     expect(d.match(/[MLAZ]/g)).toEqual(["M", "L", "A", "L", "A", "Z"]);
     // Every coordinate stays within the hull of the two end circles.
     const values = (d.match(NUMBER) ?? []).map(Number);
@@ -23,15 +17,22 @@ describe("athlete figure", () => {
   });
 
   it("falls back to a circle when one end swallows the other", () => {
-    const d = capsulePath({
-      kind: "capsule",
-      a: { x: 5, y: 5 },
-      b: { x: 5, y: 5.5 },
-      r1: 2,
-      r2: 1,
-      fill: "#000",
-    });
-    expect(d).toContain("a 2 2 0 1 0 4 0");
+    expect(capsulePath({ x: 5, y: 5 }, { x: 5, y: 5.5 }, 2, 1)).toContain("a 2 2 0 1 0 4 0");
+  });
+
+  it("joins outline points into one closed smooth curve through each of them", () => {
+    const square = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+    ];
+    const d = smoothPath(square);
+    expect(d.startsWith("M 0.00 0.00")).toBe(true);
+    expect(d.match(/C/g)).toHaveLength(4);
+    expect(d.endsWith("Z")).toBe(true);
+    for (const p of square) expect(d).toContain(`${p.x.toFixed(2)} ${p.y.toFixed(2)}`);
+    expect(smoothPath([])).toBe("");
   });
 
   it.each(Object.keys(MOTIONS))("%s renders a complete, finite athlete", (slug) => {
@@ -40,7 +41,7 @@ describe("athlete figure", () => {
     for (const t of [0, motion.beat * 0.5, motion.beat, motion.beat * 1.7]) {
       const skeleton = frameAt(motion, t, anchorX);
       const shapes = bodyShapes(skeleton, motion.view);
-      // Arms, legs, torso, head, clothing and shoes are all present.
+      // Skin, hair, clothing and shoes are all present.
       const fills = new Set(shapes.map((s) => s.fill));
       for (const colour of [
         PALETTE.skin,
@@ -52,15 +53,21 @@ describe("athlete figure", () => {
         expect(fills.has(colour)).toBe(true);
       }
       for (const shape of shapes) {
-        const d = shape.kind === "disc" ? "" : capsulePath(shape);
-        expect(d.includes("NaN")).toBe(false);
-        if (shape.kind === "capsule") {
-          // Shoes and limbs may touch the floor but never go through it.
-          expect(shape.a.y - shape.r1).toBeLessThanOrEqual(CANVAS.floor);
-        }
+        expect(shape.d.length).toBeGreaterThan(0);
+        expect(shape.d.includes("NaN")).toBe(false);
       }
       const shadow = floorShadow(skeleton);
       expect(Number.isFinite(shadow.cx) && shadow.rx >= 7).toBe(true);
+    }
+  });
+
+  it("never draws a shoe through the floor", () => {
+    for (const motion of Object.values(MOTIONS)) {
+      const { anchorX } = framing(motion);
+      const s = frameAt(motion, 0, anchorX);
+      for (const p of [s.heelNear, s.heelFar, s.toeNear, s.toeFar]) {
+        expect(p.y).toBeLessThanOrEqual(CANVAS.floor + 1e-6);
+      }
     }
   });
 });

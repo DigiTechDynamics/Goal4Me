@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { AccessibilityInfo } from "react-native";
-import Svg, { Circle, Defs, Ellipse, G, Path, RadialGradient, Rect, Stop } from "react-native-svg";
+import Svg, { Defs, Ellipse, G, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 import type { ExerciseMotion as Motion } from "../motion/motions";
-import { bodyShapes, capsulePath, floorShadow } from "../motion/body";
+import { bodyShapes, floorShadow } from "../motion/body";
 import { placeProp, type PlacedProp } from "../motion/props";
-import { CANVAS, frameAt, framing } from "../motion/skeleton";
+import { frameAt } from "../motion/playback";
+import { CANVAS, framing } from "../motion/skeleton";
 import { colors } from "@/theme/tokens";
 
 /** Redraws per second; plenty for a smooth figure, light on battery. */
@@ -106,13 +107,9 @@ export function ExerciseMotion({
           fill="#000"
           opacity={0.35}
         />
-        {shapes.map((shape, i) =>
-          shape.kind === "disc" ? (
-            <Circle key={i} cx={shape.c.x} cy={shape.c.y} r={shape.r} fill={shape.fill} />
-          ) : (
-            <Path key={i} d={capsulePath(shape)} fill={shape.fill} />
-          ),
-        )}
+        {shapes.map((shape, i) => (
+          <Path key={i} d={shape.d} fill={shape.fill} opacity={shape.opacity ?? 1} />
+        ))}
       </G>
     </Svg>
   );
