@@ -17,13 +17,15 @@ export const billingKeys = {
 
 /**
  * Content the database hides from free users (locked workout days, premium
- * lessons) is cached as "empty". When premium status changes, those caches
+ * lessons and running guides) is cached as "empty". When premium status changes, those caches
  * are stale, so refetch them.
  */
 function refreshGatedContent(client: QueryClient) {
   void client.invalidateQueries({ queryKey: ["program-day"] });
   void client.invalidateQueries({ queryKey: ["lesson"] });
   void client.invalidateQueries({ predicate: (q) => q.queryKey.includes("lessons") });
+  void client.invalidateQueries({ queryKey: ["run-guide"] });
+  void client.invalidateQueries({ queryKey: ["run-guides"] });
 }
 
 export interface PremiumStatus {

@@ -335,3 +335,28 @@ export function nextRunIntensity(current: number, effort: RunEffort): number {
   const next = Math.round((current + delta) * 100) / 100;
   return Math.min(RUN_INTENSITY.max, Math.max(RUN_INTENSITY.min, next));
 }
+
+/**
+ * Compendium-of-Physical-Activities style MET values per segment, for the
+ * calorie estimate (kcal = MET × kg × hours, see estimateKcal).
+ */
+export const RUN_SEGMENT_MET: Record<RunSegmentKind, number> = {
+  warmup: 3.5,
+  cooldown: 3,
+  walk: 3.5,
+  recover: 5,
+  run: 7,
+  easy: 8,
+  long: 8,
+  stride: 10,
+  tempo: 10,
+  fast: 11,
+  race: 10,
+};
+
+/** Time-weighted MET of a run's segments. */
+export function averageRunMet(segments: readonly RunSegment[]): number {
+  const total = segments.reduce((sum, s) => sum + s.seconds, 0);
+  if (total === 0) return RUN_SEGMENT_MET.easy;
+  return segments.reduce((sum, s) => sum + RUN_SEGMENT_MET[s.kind] * s.seconds, 0) / total;
+}

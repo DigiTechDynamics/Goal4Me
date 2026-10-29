@@ -7,7 +7,16 @@ import {
 import { z } from "zod";
 import { clientId, isoDate } from "./common";
 
-const weekday = z.number().int().min(0).max(6);
+/** Monday-first weekday, 0–6 (typed as the core Weekday union). */
+const weekday = z.union([
+  z.literal(0),
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+  z.literal(4),
+  z.literal(5),
+  z.literal(6),
+]);
 
 export const runnerAnswersSchema = z.object({
   longestRun: z.enum(LONGEST_RUN_OPTIONS),

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addDays,
   assessRunnerLevel,
+  averageRunMet,
   buildRunPlan,
   formatDistance,
   formatDuration,
@@ -221,5 +222,17 @@ describe("pace", () => {
     expect(formatDuration(5400)).toBe("1 h 30 min");
     expect(formatDistance(5000, "km")).toBe("5.0 km");
     expect(formatDistance(5000, "mi")).toBe("3.1 mi");
+  });
+});
+
+describe("averageRunMet", () => {
+  it("weights each segment by its time", () => {
+    expect(
+      averageRunMet([
+        { kind: "walk", seconds: 60 },
+        { kind: "fast", seconds: 60 },
+      ]),
+    ).toBe(7.25);
+    expect(averageRunMet([])).toBe(8);
   });
 });

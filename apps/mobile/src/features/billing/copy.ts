@@ -20,6 +20,7 @@ export function planPrice(id: PlanId): { total: string; perWeek: string } {
 export const PREMIUM_BENEFITS = [
   "Every workout in your 4-week programme, adapted to you",
   "All 30 money lessons and quizzes",
+  "Every run in your running plan, from 5K to marathon",
   "New programmes as they launch",
   "Support Goal4Me's development",
 ];
@@ -28,6 +29,7 @@ export const PREMIUM_BENEFITS = [
 export const PAYWALL_REASONS = {
   workout: "Keep your streak going",
   lesson: "Keep learning",
+  run: "Keep running",
   general: "Unlock your full plan",
 } as const;
 export type PaywallReason = keyof typeof PAYWALL_REASONS;

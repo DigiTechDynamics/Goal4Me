@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useHealthSettings } from "@/features/health/sync";
 import { useOnboardingStore } from "@/features/onboarding/store";
+import { useRunQueue } from "@/features/running/sync";
 import { useSyncQueue } from "@/features/workouts/syncQueue";
 import { logger } from "@/lib/logger";
 import { QUERY_CACHE_KEY, queryClient } from "@/lib/queryClient";
@@ -9,7 +10,7 @@ import { QUERY_CACHE_KEY, queryClient } from "@/lib/queryClient";
  * Removes personal data cached on this device. Called on sign-out (shared
  * phones are common in our launch markets) and after account deletion.
  *
- * Unsynced workouts survive a normal sign-out, because they belong to the
+ * Unsynced workouts and runs survive a normal sign-out, because they belong to the
  * user and are sent the next time they sign in. Deleting the account drops
  * them too.
  */
@@ -27,6 +28,8 @@ export async function clearLocalData({
   if (dropUnsyncedWorkouts && userId) {
     const { pending, remove } = useSyncQueue.getState();
     for (const workout of pending.filter((p) => p.userId === userId)) remove(workout.sessionId);
+    const runs = useRunQueue.getState();
+    for (const run of runs.pending.filter((p) => p.userId === userId)) runs.remove(run.sessionId);
   }
   try {
     await AsyncStorage.removeItem(QUERY_CACHE_KEY);
