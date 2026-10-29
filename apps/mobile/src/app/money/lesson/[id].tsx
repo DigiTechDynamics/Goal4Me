@@ -62,7 +62,7 @@ function LessonFlow({ lesson }: { lesson: Lesson }) {
 
   const finishQuiz = () => {
     setPhase({ step: "done" });
-    complete.mutate({ lessonId: lesson.id, score: Math.min(3, score) });
+    complete.mutate({ lessonId: lesson.id, score: Math.min(3, score), track: lesson.track });
   };
 
   if (phase.step === "read") {
@@ -198,7 +198,9 @@ function LessonFlow({ lesson }: { lesson: Lesson }) {
           label="Try saving again"
           variant="secondary"
           loading={complete.isPending}
-          onPress={() => complete.mutate({ lessonId: lesson.id, score: Math.min(3, score) })}
+          onPress={() =>
+            complete.mutate({ lessonId: lesson.id, score: Math.min(3, score), track: lesson.track })
+          }
         />
       ) : null}
       {lesson.action ? (

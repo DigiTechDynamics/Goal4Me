@@ -16,6 +16,8 @@ import { AppText, Button, Card, ProgressBar, Screen } from "@/components/ui";
 import { useUserId } from "@/features/auth/AuthProvider";
 import { LockedCard } from "@/features/billing/components/LockedCard";
 import { useDayLocks } from "@/features/billing/gating";
+import { syncWorkoutToHealth } from "@/features/health/sync";
+import { track } from "@/lib/analytics";
 import { useHomeSummary } from "@/features/home/api";
 import { useExerciseLibrary, useProgramDay, useProgramPlan } from "@/features/workouts/api";
 import { CountdownRing } from "@/features/workouts/components/CountdownRing";
@@ -99,6 +101,7 @@ export default function WorkoutScreen() {
     <Player
       userId={userId}
       dayId={dayId}
+      dayNumber={planDay?.dayNumber ?? 0}
       title={day.data.title}
       workout={workout}
       intensityFactor={plan.data.intensityFactor}
@@ -110,6 +113,7 @@ export default function WorkoutScreen() {
 function Player({
   userId,
   dayId,
+  dayNumber,
   title,
   workout,
   intensityFactor,
@@ -117,6 +121,7 @@ function Player({
 }: {
   userId: string;
   dayId: string;
+  dayNumber: number;
   title: string;
   workout: ReturnType<typeof buildWorkout>;
   intensityFactor: number;
@@ -150,6 +155,7 @@ function Player({
       <Finished
         userId={userId}
         dayId={dayId}
+        dayNumber={dayNumber}
         startedAt={startedAt.current}
         durationSec={Math.max(1, state.elapsed)}
         kcal={estimateKcal({
@@ -318,6 +324,7 @@ function Player({
 function Finished(props: {
   userId: string;
   dayId: string;
+  dayNumber: number;
   startedAt: string;
   durationSec: number;
   kcal: number;
@@ -345,6 +352,13 @@ function Finished(props: {
       nextIntensity: nextIntensityFactor(props.intensityFactor, [...props.recentRatings, rating]),
     });
     void flushWorkoutQueue(props.userId);
+    syncWorkoutToHealth({
+      id: sessionId.current,
+      startedAt: props.startedAt,
+      durationSec: props.durationSec,
+      kcal: props.kcal,
+    });
+    track("workout_completed", { day: props.dayNumber, rating });
     setSaved(true);
   };
 

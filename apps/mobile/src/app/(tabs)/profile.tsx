@@ -5,7 +5,9 @@ import { AppText, Banner, Button, Card, Screen } from "@/components/ui";
 import { exportMyData } from "@/features/account/api";
 import { signOut } from "@/features/auth/api";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { PrivacyCard } from "@/features/account/components/PrivacyCard";
 import { PremiumCard } from "@/features/billing/components/PremiumCard";
+import { HealthCard } from "@/features/health/components/HealthCard";
 import { useHomeSummary } from "@/features/home/api";
 import { formatHeight } from "@/features/onboarding/units";
 import { toUserMessage } from "@/lib/errors";
@@ -78,6 +80,8 @@ export default function Profile() {
         />
         <Row label="Currency" value={profile?.currency ?? "—"} last />
       </Card>
+      <HealthCard />
+      <PrivacyCard />
       <Card>
         <AppText variant="overline" color="textMuted">
           Your data

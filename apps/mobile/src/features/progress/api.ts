@@ -1,6 +1,8 @@
 import { liveStreak, type LiveStreak, type MeasurementKey } from "@goal4me/core";
 import type { BodyMetricInput } from "@goal4me/schemas";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { syncWeightToHealth } from "@/features/health/sync";
+import { track } from "@/lib/analytics";
 import { getSupabase } from "@/lib/supabase";
 import { localToday } from "@/lib/format";
 
@@ -77,11 +79,14 @@ export function useLogBodyMetric(userId: string) {
       if (error) throw error;
     },
     // Today's BMI, targets and goal date all depend on the latest weight.
-    onSuccess: () =>
-      Promise.all([
+    onSuccess: (_data, input) => {
+      syncWeightToHealth({ id: input.id, measuredOn: input.measuredOn, weightKg: input.weightKg });
+      track("weight_logged", {});
+      return Promise.all([
         client.invalidateQueries({ queryKey: progressKeys.metrics(userId) }),
         client.invalidateQueries({ queryKey: ["home-summary", userId] }),
-      ]),
+      ]);
+    },
   });
 }
 

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { getSupabase } from "@/lib/supabase";
 import { moneyKeys } from "./api";
+import { track } from "@/lib/analytics";
 
 export const TRACK_LABEL: Record<string, string> = {
   budgeting: "Budgeting",
@@ -111,12 +112,21 @@ export function useLesson(lessonId: string) {
 export function useCompleteLesson(userId: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async ({ lessonId, score }: { lessonId: string; score: number }) => {
+    mutationFn: async ({
+      lessonId,
+      score,
+      track: lessonTrack,
+    }: {
+      lessonId: string;
+      score: number;
+      track: string;
+    }) => {
       const { error } = await getSupabase().rpc("complete_lesson", {
         p_lesson_id: lessonId,
         p_quiz_score: score,
       });
       if (error) throw error;
+      track("lesson_completed", { track: lessonTrack });
     },
     onSuccess: () => client.invalidateQueries({ queryKey: moneyKeys.lessons(userId) }),
   });

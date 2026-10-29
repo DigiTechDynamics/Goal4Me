@@ -35,6 +35,16 @@ export default tseslint.config(
     },
   },
   {
+    // Tool config files that Node loads as CommonJS (e.g. metro.config.js).
+    files: ["**/*.config.js"],
+    ignores: ["eslint.config.js"],
+    languageOptions: {
+      sourceType: "commonjs",
+      globals: { require: "readonly", module: "writable", __dirname: "readonly" },
+    },
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
+  {
     files: ["**/*.test.ts"],
     rules: { "@typescript-eslint/no-non-null-assertion": "off" },
   },

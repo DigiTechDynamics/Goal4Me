@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useHealthSettings } from "@/features/health/sync";
 import { useOnboardingStore } from "@/features/onboarding/store";
 import { useSyncQueue } from "@/features/workouts/syncQueue";
 import { logger } from "@/lib/logger";
@@ -21,6 +22,8 @@ export async function clearLocalData({
 }): Promise<void> {
   queryClient.clear();
   useOnboardingStore.getState().reset();
+  // Health permission belongs to the phone's owner: the next account must opt in again.
+  useHealthSettings.getState().setEnabled(false);
   if (dropUnsyncedWorkouts && userId) {
     const { pending, remove } = useSyncQueue.getState();
     for (const workout of pending.filter((p) => p.userId === userId)) remove(workout.sessionId);

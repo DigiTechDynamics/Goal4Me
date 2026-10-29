@@ -14,6 +14,7 @@ import type {
 } from "@goal4me/schemas";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSupabase } from "@/lib/supabase";
+import { track } from "@/lib/analytics";
 
 /**
  * Data access for the Money tab. Amounts arrive from Postgres as bigint,
@@ -144,6 +145,7 @@ export function useSetupBudget(userId: string) {
         p_currency: input.currency,
       });
       if (error) throw error;
+      track("budget_created", {});
     },
     onSuccess: invalidate,
   });

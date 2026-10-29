@@ -4,17 +4,20 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { DarkTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AppText } from "@/components/ui";
 import { AuthProvider, useAuth } from "@/features/auth/AuthProvider";
 import { useOnboardingHydrated } from "@/features/onboarding/store";
+import { identifyUser } from "@/lib/analytics";
 import { envErrors } from "@/lib/env";
+import { initMonitoring, setMonitoringUser, withMonitoring } from "@/lib/monitoring";
 import { PERSIST_OPTIONS, QUERY_CACHE_KEY, queryClient } from "@/lib/queryClient";
 import { colors, spacing } from "@/theme/tokens";
 
 void SplashScreen.preventAutoHideAsync();
+initMonitoring();
 
 const persister = createAsyncStoragePersister({
   storage: AsyncStorage,
@@ -31,7 +34,7 @@ const navigationTheme = {
   },
 };
 
-export default function RootLayout() {
+function RootLayout() {
   if (envErrors.length > 0) return <ConfigurationError />;
   return (
     <SafeAreaProvider>
@@ -50,6 +53,8 @@ export default function RootLayout() {
   );
 }
 
+export default withMonitoring(RootLayout);
+
 /**
  * Route guards: signed-out users see the welcome and auth screens, signed-in
  * users see the tabs. The quiz is open to both (a signed-in user without a
@@ -60,6 +65,17 @@ function RootNavigator() {
   // Wait for saved quiz answers too, so screens never flash an empty quiz.
   const hydrated = useOnboardingHydrated();
   const ready = !initializing && hydrated;
+  const userId = session?.user.id ?? null;
+
+  // Crash reports and analytics know the account only by its opaque id.
+  // Forget the user only on an actual sign-out, not on every signed-out launch.
+  const previousUser = useRef<string | null>(null);
+  useEffect(() => {
+    if (initializing || previousUser.current === userId) return;
+    setMonitoringUser(userId);
+    identifyUser(userId);
+    previousUser.current = userId;
+  }, [initializing, userId]);
 
   useEffect(() => {
     if (ready) void SplashScreen.hideAsync();

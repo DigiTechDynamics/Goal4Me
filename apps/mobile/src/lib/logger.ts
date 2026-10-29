@@ -5,7 +5,7 @@ type Context = Record<string, unknown>;
 
 /**
  * Keys whose values must never be logged (health data and personal data).
- * In stage 6 the same redaction runs before events are sent to Sentry.
+ * The same redaction runs before errors are reported to Sentry.
  */
 const SENSITIVE_KEYS = /email|password|token|phone|weight|height|birth|bmi|name|note|amount/i;
 
@@ -18,6 +18,17 @@ export function redact(context: Context): Context {
   );
 }
 
+type ErrorReporter = (message: string, context: Context | undefined) => void;
+let reportError: ErrorReporter | null = null;
+
+/**
+ * Lets crash reporting (lib/monitoring.ts) receive every logged error
+ * without the logger depending on it. Context arrives already redacted.
+ */
+export function setErrorReporter(reporter: ErrorReporter | null): void {
+  reportError = reporter;
+}
+
 function write(level: Level, message: string, context?: Context): void {
   // Debug logs are dropped from production builds.
   if (level === "debug" && !__DEV__) return;
@@ -25,6 +36,7 @@ function write(level: Level, message: string, context?: Context): void {
   const line = `[goal4me] ${message}`;
   if (payload) console[level](line, payload);
   else console[level](line);
+  if (level === "error") reportError?.(message, payload);
 }
 
 export const logger = {

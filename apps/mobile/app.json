@@ -12,7 +12,13 @@
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.goal4me.app",
       "supportsTablet": false,
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "com.apple.developer.healthkit": true
+      }
     },
     "android": {
       "package": "com.goal4me.app",
@@ -22,7 +28,12 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.health.WRITE_WEIGHT",
+        "android.permission.health.WRITE_EXERCISE",
+        "android.permission.health.WRITE_ACTIVE_CALORIES_BURNED"
+      ]
     },
     "web": {
       "output": "single",
@@ -50,11 +61,41 @@
           "microphonePermission": false
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "@sentry/react-native",
+        {
+          "organization": "goal4me",
+          "project": "goal4me-app",
+          "url": "https://sentry.io/"
+        }
+      ],
+      "expo-localization",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Goal4Me only saves data to Apple Health when you allow it. It does not read your health data.",
+          "NSHealthUpdateUsageDescription": "Goal4Me saves your weigh-ins and workouts to Apple Health when you turn this on in Profile.",
+          "background": false
+        }
+      ],
+      "react-native-health-connect",
+      "expo-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }
