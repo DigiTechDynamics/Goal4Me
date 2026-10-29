@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { AccessibilityInfo } from "react-native";
-import Svg, { Circle, G, Line, Rect } from "react-native-svg";
+import Svg, { Circle, Defs, Ellipse, G, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 import type { ExerciseMotion as Motion } from "../motion/motions";
+import { bodyShapes, capsulePath, floorShadow } from "../motion/body";
 import { placeProp, type PlacedProp } from "../motion/props";
-import { CANVAS, frameAt, framing, type Point } from "../motion/skeleton";
+import { CANVAS, frameAt, framing } from "../motion/skeleton";
 import { colors } from "@/theme/tokens";
 
 /** Redraws per second; plenty for a smooth figure, light on battery. */
 const FPS = 30;
-const LIMB = 4.2;
 
 /** Follows the OS "reduce motion" setting; true means show a still pose. */
 function useReduceMotion(): boolean {
@@ -54,71 +54,67 @@ function useClock(running: boolean): number {
 }
 
 /**
- * Original animated figure demonstrating an exercise (vector shapes only).
- * Loops while `playing`; with reduce motion on it holds the key position
- * (the second keyframe: the bottom of a squat, the top of a raise).
+ * Original animated athlete demonstrating an exercise (vector shapes only).
+ * Loops while `playing`. With reduce motion on, or `still` (thumbnails), it
+ * holds the key position: the second keyframe, e.g. the bottom of a squat.
  */
-export function ExerciseMotion({ motion, playing = true }: { motion: Motion; playing?: boolean }) {
+export function ExerciseMotion({
+  motion,
+  playing = true,
+  still = false,
+}: {
+  motion: Motion;
+  playing?: boolean;
+  still?: boolean;
+}) {
   const reduce = useReduceMotion();
-  const seconds = useClock(playing && !reduce);
+  const hold = reduce || still;
+  const seconds = useClock(playing && !hold);
   const { anchorX, scale } = useMemo(() => framing(motion), [motion]);
   const prop = useMemo(() => placeProp(motion, anchorX), [motion, anchorX]);
-  const time = reduce ? motion.beat : seconds;
-  const s = frameAt(motion, time, anchorX);
+  const s = frameAt(motion, hold ? motion.beat : seconds, anchorX);
+  const shapes = bodyShapes(s, motion.view);
+  const shadow = floorShadow(s);
   // Scale about the floor's centre so the figure stays grounded and centred.
   const cx = CANVAS.width / 2;
   const transform = `translate(${cx} ${CANVAS.floor}) scale(${scale}) translate(${-cx} ${-CANVAS.floor})`;
-  // Side view: far limbs are behind the body, so they're drawn first and dimmer.
-  const farOpacity = motion.view === "side" ? 0.4 : 1;
 
   return (
     <Svg width="100%" height="100%" viewBox={`0 0 ${CANVAS.width} ${CANVAS.height}`}>
-      <Line
-        x1={4}
-        y1={CANVAS.floor + LIMB / 2}
-        x2={CANVAS.width - 4}
-        y2={CANVAS.floor + LIMB / 2}
-        stroke={colors.border}
-        strokeWidth={1.2}
-        strokeLinecap="round"
+      <Defs>
+        <RadialGradient id="spot" cx="50%" cy="62%" rx="58%" ry="70%">
+          <Stop offset="0" stopColor={colors.surfaceRaised} stopOpacity={1} />
+          <Stop offset="1" stopColor={colors.surface} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Rect x={0} y={0} width={CANVAS.width} height={CANVAS.height} fill="url(#spot)" />
+      <Rect
+        x={0}
+        y={CANVAS.floor}
+        width={CANVAS.width}
+        height={CANVAS.height - CANVAS.floor}
+        fill={colors.surfaceRaised}
+        opacity={0.6}
       />
       <G transform={transform}>
         {prop && <PropShape prop={prop} />}
-        <G opacity={farOpacity}>
-          <Chain points={[s.shoulderFar, s.elbowFar, s.handFar]} />
-          <Chain points={[s.hipFar, s.kneeFar, s.footFar]} />
-        </G>
-        {motion.view === "front" && <Chain points={[s.shoulderFar, s.shoulderNear]} />}
-        {motion.view === "front" && <Chain points={[s.hipFar, s.hipNear]} />}
-        <Chain points={[s.hip, s.neck]} width={LIMB * 1.5} />
-        <Circle cx={s.head.x} cy={s.head.y} r={5.5} fill={colors.brand} />
-        <Chain points={[s.hipNear, s.kneeNear, s.footNear]} />
-        <Chain points={[s.shoulderNear, s.elbowNear, s.handNear]} />
+        <Ellipse
+          cx={shadow.cx}
+          cy={CANVAS.floor + 0.6}
+          rx={shadow.rx}
+          ry={1.8}
+          fill="#000"
+          opacity={0.35}
+        />
+        {shapes.map((shape, i) =>
+          shape.kind === "disc" ? (
+            <Circle key={i} cx={shape.c.x} cy={shape.c.y} r={shape.r} fill={shape.fill} />
+          ) : (
+            <Path key={i} d={capsulePath(shape)} fill={shape.fill} />
+          ),
+        )}
       </G>
     </Svg>
-  );
-}
-
-/** A limb drawn as joined rounded segments. */
-function Chain({ points, width = LIMB }: { points: Point[]; width?: number }) {
-  return (
-    <>
-      {points.slice(1).map((to, i) => {
-        const from = points[i] as Point;
-        return (
-          <Line
-            key={i}
-            x1={from.x}
-            y1={from.y}
-            x2={to.x}
-            y2={to.y}
-            stroke={colors.brand}
-            strokeWidth={width}
-            strokeLinecap="round"
-          />
-        );
-      })}
-    </>
   );
 }
 
@@ -130,36 +126,24 @@ function PropShape({ prop }: { prop: PlacedProp }) {
         y={-CANVAS.height}
         width={prop.width}
         height={CANVAS.floor + CANVAS.height}
-        fill={colors.surfaceRaised}
-        stroke={colors.border}
-        strokeWidth={0.8}
+        fill={colors.border}
       />
     );
   }
   const width = prop.backX - prop.frontX;
   return (
     <G>
-      <Rect
-        x={prop.frontX}
-        y={prop.seatY}
-        width={width}
-        height={3}
-        rx={1}
-        fill={colors.surfaceRaised}
-        stroke={colors.border}
-        strokeWidth={0.8}
-      />
       {[prop.frontX + 1.5, prop.backX - 1.5].map((x) => (
-        <Line
+        <Rect
           key={x}
-          x1={x}
-          y1={prop.seatY + 3}
-          x2={x}
-          y2={CANVAS.floor}
-          stroke={colors.border}
-          strokeWidth={1.6}
+          x={x - 0.9}
+          y={prop.seatY + 2}
+          width={1.8}
+          height={CANVAS.floor - prop.seatY - 2}
+          fill={colors.textSubtle}
         />
       ))}
+      <Rect x={prop.frontX} y={prop.seatY} width={width} height={3.2} rx={1.2} fill="#7A5A3A" />
     </G>
   );
 }
