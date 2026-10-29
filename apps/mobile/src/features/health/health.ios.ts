@@ -28,11 +28,13 @@ export const healthStore: HealthStore = {
     });
   },
 
-  async writeWorkout({ id, startedAt, durationSec, kcal }) {
+  async writeWorkout({ id, startedAt, durationSec, kcal, activity = "strength" }) {
     const start = new Date(startedAt);
     const end = new Date(start.getTime() + durationSec * 1000);
     await saveWorkoutSample(
-      WorkoutActivityType.functionalStrengthTraining,
+      activity === "running"
+        ? WorkoutActivityType.running
+        : WorkoutActivityType.functionalStrengthTraining,
       [],
       start,
       end,

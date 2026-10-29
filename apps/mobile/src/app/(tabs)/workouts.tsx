@@ -1,18 +1,49 @@
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import { useState } from "react";
 import { StyleSheet } from "react-native";
 import { ErrorView, LoadingView } from "@/components/StateViews";
-import { AppText, Button, Card, Screen } from "@/components/ui";
+import { AppText, Button, Card, Screen, SegmentedControl } from "@/components/ui";
 import { useUserId } from "@/features/auth/AuthProvider";
 import { openPaywall, useDayLocks } from "@/features/billing/gating";
 import { NeedsPlan } from "@/features/home/NeedsPlan";
+import { RunningHome } from "@/features/running/components/RunningHome";
 import { nextWorkoutDay, useProgramPlan } from "@/features/workouts/api";
 import { ProgramCalendar } from "@/features/workouts/components/ProgramCalendar";
 import { toUserMessage } from "@/lib/errors";
 import { spacing } from "@/theme/tokens";
 
-/** Workouts tab: the programme calendar and the next workout. */
+type Mode = "strength" | "running";
+const MODES: { value: Mode; label: string }[] = [
+  { value: "strength", label: "Strength" },
+  { value: "running", label: "Running" },
+];
+
+/**
+ * Workouts tab: strength (the programme calendar and the next workout) or
+ * running (the running plan). `?mode=running` opens straight on running.
+ */
 export default function Workouts() {
   const userId = useUserId();
+  const params = useLocalSearchParams<{ mode?: string }>();
+  const [mode, setMode] = useState<Mode>(params.mode === "running" ? "running" : "strength");
+
+  return (
+    <Screen>
+      <AppText variant="title" accessibilityRole="header" style={styles.title}>
+        Workouts
+      </AppText>
+      <SegmentedControl
+        options={MODES}
+        value={mode}
+        onChange={setMode}
+        accessibilityLabel="Workout type"
+      />
+      {mode === "running" ? <RunningHome userId={userId} /> : <Strength userId={userId} />}
+    </Screen>
+  );
+}
+
+function Strength({ userId }: { userId: string }) {
   const plan = useProgramPlan(userId);
   const locks = useDayLocks(userId, plan.data);
 
@@ -33,10 +64,7 @@ export default function Workouts() {
   };
 
   return (
-    <Screen>
-      <AppText variant="title" accessibilityRole="header" style={styles.title}>
-        Workouts
-      </AppText>
+    <>
       {!data ? (
         <NeedsPlan />
       ) : (
@@ -83,7 +111,7 @@ export default function Workouts() {
           />
         </>
       )}
-    </Screen>
+    </>
   );
 }
 

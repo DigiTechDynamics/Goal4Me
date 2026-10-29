@@ -44,15 +44,16 @@ export const healthStore: HealthStore = {
     ]);
   },
 
-  async writeWorkout({ id, startedAt, durationSec, kcal }) {
+  async writeWorkout({ id, startedAt, durationSec, kcal, activity = "strength" }) {
+    const running = activity === "running";
     if (!(await ready())) return;
     const start = new Date(startedAt);
     const end = new Date(start.getTime() + durationSec * 1000).toISOString();
     await insertRecords([
       {
         recordType: "ExerciseSession",
-        exerciseType: ExerciseType.CALISTHENICS,
-        title: "Goal4Me workout",
+        exerciseType: running ? ExerciseType.RUNNING : ExerciseType.CALISTHENICS,
+        title: running ? "Goal4Me run" : "Goal4Me workout",
         startTime: start.toISOString(),
         endTime: end,
         metadata: { clientRecordId: `goal4me-workout-${id}`, clientRecordVersion: 1 },

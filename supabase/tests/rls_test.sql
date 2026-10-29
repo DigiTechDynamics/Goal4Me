@@ -233,6 +233,65 @@ do $$ begin
   assert (select count(*) from public.lessons) = 3, 'locked again after expiry';
 end $$;
 
+-- Running: guides gated like lessons; the first 3 runs of a plan are free.
+insert into public.run_plans (id, program, settings)
+values ('aaaaaaaa-0000-0000-0000-0000000000a1', 'couch-to-5k', '{"program":"couch-to-5k","daysPerWeek":3}');
+do $$ begin
+  assert (select count(*) from public.run_guide_catalog) = 24, 'every guide title is listed';
+  assert (select count(*) from public.run_guides) = 6, 'free users open the Starter guides only';
+  assert public.log_run('aaaaaaaa-0000-0000-0000-0000000000b1', 'aaaaaaaa-0000-0000-0000-0000000000a1',
+                        1, 1, now() - interval '1 hour', 1800, 2500, 'hard', '  first run! ', 0.95),
+    'first run logged';
+  assert not public.log_run('aaaaaaaa-0000-0000-0000-0000000000b1', 'aaaaaaaa-0000-0000-0000-0000000000a1',
+                            1, 1, now() - interval '1 hour', 1800, 2500, 'hard', null, 0.95),
+    'a retried sync is ignored';
+  assert (select completed_runs from public.run_plans) = 1, 'plan advanced once';
+  assert (select intensity from public.run_plans) = 0.95, 'intensity follows effort';
+  assert (select notes from public.run_sessions) = 'first run!', 'notes trimmed';
+  begin
+    perform public.log_run(gen_random_uuid(), 'aaaaaaaa-0000-0000-0000-0000000000a1',
+                           4, 2, now(), 1800, null, 'easy', null, 1);
+    raise exception 'FAIL: free user logged run 4';
+  exception when insufficient_privilege then null; end;
+  begin
+    insert into public.run_sessions (id, user_id, plan_id, run_number, week, started_at, duration_s, effort)
+    values (gen_random_uuid(), '11111111-1111-1111-1111-111111111111',
+            'aaaaaaaa-0000-0000-0000-0000000000a1', 9, 3, now(), 1800, 'easy');
+    raise exception 'FAIL: free user inserted run 9 directly';
+  exception when insufficient_privilege then null; end;
+  begin
+    update public.run_sessions set duration_s = 60;
+    if found then raise exception 'FAIL: runs are editable'; end if;
+  exception when insufficient_privilege then null; end;
+  begin
+    insert into public.run_plans (program, settings) values ('5k-to-10k', '{"program":"5k-to-10k"}');
+    raise exception 'FAIL: two active plans';
+  exception when unique_violation then null; end;
+  begin
+    insert into public.run_plans (program, settings, is_active) values ('ultra', '{"program":"ultra"}', false);
+    raise exception 'FAIL: unknown programme accepted';
+  exception when check_violation then null; end;
+  begin
+    insert into public.run_guides (slug, level, position, title, body_md) values ('x', 'pro', 9, 'x', 'x');
+    raise exception 'FAIL: user wrote a guide';
+  exception when insufficient_privilege then null; end;
+  assert jsonb_array_length(public.export_my_data() -> 'run_sessions') = 1, 'runs are exported';
+end $$;
+reset role;
+do $$ begin
+  assert (select current_days from public.streaks
+           where user_id = '11111111-1111-1111-1111-111111111111') >= 1, 'a run counts for the streak';
+end $$;
+update public.entitlements set expires_at = now() + interval '1 day'
+ where user_id = '11111111-1111-1111-1111-111111111111';
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.run_guides) = 24, 'premium users open every guide';
+  assert public.log_run(gen_random_uuid(), 'aaaaaaaa-0000-0000-0000-0000000000a1',
+                        4, 2, now(), 1800, null, 'easy', null, 1), 'premium users log run 4';
+  assert (select completed_runs from public.run_plans) = 4, 'plan advanced to run 4';
+end $$;
+
 -- ---- Act as Bob -------------------------------------------------------------
 select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', true) as _ \gset
 select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222"}', true) as _ \gset
@@ -241,6 +300,13 @@ do $$ begin
   assert (select count(*) from public.body_metrics) = 0, 'Bob must not see Alice''s metrics';
   assert (select count(*) from public.workout_sessions) = 0, 'Bob must not see Alice''s workouts';
   assert (select count(*) from public.profiles) = 1, 'Bob sees only his own profile';
+  assert (select count(*) from public.run_plans) = 0, 'Bob must not see Alice''s run plan';
+  assert (select count(*) from public.run_sessions) = 0, 'Bob must not see Alice''s runs';
+  begin
+    perform public.log_run(gen_random_uuid(), 'aaaaaaaa-0000-0000-0000-0000000000a1',
+                           1, 1, now(), 1800, null, 'easy', null, 1);
+    raise exception 'FAIL: Bob logged a run on Alice''s plan';
+  exception when invalid_parameter_value then null; end;
 
   -- Bob cannot attach a transaction to Alice's category (composite FK + RLS).
   begin

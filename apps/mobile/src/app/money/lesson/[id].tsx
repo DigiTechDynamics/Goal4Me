@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
+import { ArticleBody } from "@/components/ArticleBody";
 import { BackButton } from "@/components/BackButton";
 import { ErrorView, LoadingView } from "@/components/StateViews";
 import { AppText, Banner, Button, Card, ChoiceCard, ProgressBar, Screen } from "@/components/ui";
@@ -9,7 +10,6 @@ import { useIsPremium } from "@/features/billing/api";
 import { LockedCard } from "@/features/billing/components/LockedCard";
 import { openPaywall } from "@/features/billing/gating";
 import {
-  parseLessonBody,
   TRACK_LABEL,
   useCompleteLesson,
   useLesson,
@@ -84,22 +84,7 @@ function LessonFlow({ lesson }: { lesson: Lesson }) {
         <AppText variant="title" accessibilityRole="header">
           {lesson.title}
         </AppText>
-        {parseLessonBody(lesson.body).map((block, i) =>
-          block.type === "paragraph" ? (
-            <AppText key={i} style={styles.body}>
-              {block.text}
-            </AppText>
-          ) : (
-            <View key={i} style={styles.list}>
-              {block.items.map((item) => (
-                <View key={item} style={styles.bullet}>
-                  <AppText color="brand">•</AppText>
-                  <AppText style={[styles.body, styles.flex]}>{item}</AppText>
-                </View>
-              ))}
-            </View>
-          ),
-        )}
+        <ArticleBody body={lesson.body} />
       </Screen>
     );
   }
@@ -216,9 +201,5 @@ function LessonFlow({ lesson }: { lesson: Lesson }) {
 }
 
 const styles = StyleSheet.create({
-  body: { lineHeight: 24 },
-  list: { gap: spacing.sm },
-  bullet: { flexDirection: "row", gap: spacing.sm },
-  flex: { flex: 1 },
   options: { gap: spacing.md },
 });

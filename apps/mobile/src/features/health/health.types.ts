@@ -13,8 +13,10 @@ export interface WeightEntry {
 }
 
 export interface WorkoutEntry {
-  /** Our workout session id (same dedupe idea as above). */
+  /** Our workout or run session id (same dedupe idea as above). */
   id: string;
+  /** Strength workouts are the default; runs are saved as running sessions. */
+  activity?: "strength" | "running";
   startedAt: string;
   durationSec: number;
   kcal: number;

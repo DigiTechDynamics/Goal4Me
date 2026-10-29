@@ -18,7 +18,8 @@ then track workouts, body progress, budgets and savings in one app.
 | 4     | Weigh-ins + chart, measurements, private photos, streaks/badges, water, export, deletion | Done  |
 | 5     | Finance module and lessons                                                               | Done  |
 | 6a    | Premium: PayNow (web) + RevenueCat (stores), paywall, free-tier locks                    | Done  |
-| 6b    | Analytics, crash reporting, store builds, Apple Health / Health Connect sync             | Next  |
+| 6b    | Analytics, crash reporting, store builds, Apple Health / Health Connect sync             | Done  |
+| 7     | Running: novice-to-pro ladder, guides, customisable plans, guided run player             | Done  |
 
 Apple Health, Health Connect and store purchases use native modules, so test
 them in an EAS development build (not Expo Go). Everything else also runs on
@@ -178,6 +179,38 @@ have. Exercises without a clip keep their animation.
   generated into `supabase/migrations/20261028050000_seed_lessons.sql`. The
   first lessons of Budgeting, Saving and Debt are free; the other 27 are premium.
 
+## Running
+
+Workouts → Running takes people from their first run to a marathon.
+
+- **Level quiz**: two questions (`assessRunnerLevel`) place the runner on the
+  Starter → Builder → Racer → Pro ladder (`RUN_LEVEL_INFO`) and recommend a
+  programme. The level is saved on `profiles.runner_level`.
+- **Programmes** (`packages/core/src/running.ts`): Couch to 5K, 5K to 10K,
+  Faster 5K, 10K to half marathon, Half to marathon. Everything is
+  time-based, so it works without GPS and in km or miles.
+- **Plans are generated, not stored.** `run_plans.settings` keeps the runner's
+  choices (days per week, which days, long-run day, start, optional race date
+  and goal time); `buildRunPlan` turns them into dated sessions on the device.
+  Couch to 5K never schedules more than 3 runs a week (extra days become
+  recovery walks); other plans keep one quality session and one long run a
+  week and drop easy runs first. A race date shifts the plan so the race is
+  the last run, adds up to 6 base weeks or trims up to a third of the early
+  weeks. Editing settings keeps the runner in the same week (`rebaseProgress`).
+- **Pace zones** come from the goal time via Riegel's formula (`pace.ts`).
+- **Run player**: wall-clock state machine (`features/running/player`), so a
+  phone in a pocket shows the right segment when unlocked; voice cues,
+  haptics and keep-awake. Runs are queued offline and sent with the
+  idempotent `log_run`, then feed streaks, badges and the health app.
+  Effort ("easy / just right / hard") nudges run time by 5% (0.85×–1.15×).
+- **Guides**: 24 two-minute reads (`packages/content/src/runGuides.ts`),
+  generated into `20261029010000_seed_run_guides.sql`.
+- **Free tier**: the first 3 runs of every plan and the Starter guides,
+  enforced by RLS on `run_sessions` and `run_guides`.
+- **Not yet**: live GPS distance tracking and voice cues while the screen is
+  locked need background location/audio permissions and on-device testing;
+  they're the next running phase.
+
 ## Premium and payments
 
 The free tier is the quiz and results, the first 3 workouts of each programme,
@@ -268,6 +301,7 @@ and complete the Health Connect declaration in Play Console.
 | Protein / water     | 1.6 g/kg, 33 ml/kg                                                                                                 |
 | Goal date           | compounding 0.65 %/week loss or 0.25 %/week gain, capped at 2 years                                                |
 | Workout progression | −10 % after "too hard", +10 % after two "too easy", clamped 0.5×–2×                                                |
+| Race prediction     | Riegel: t₂ = t₁ × (d₂ ÷ d₁)^1.06; easy pace 1.25–1.4× and tempo 1.06–1.12× the 5K-equivalent pace                  |
 | Money score         | savings rate 35, emergency fund 30, lessons 20, budgeting streak 15                                                |
 
 ## Environment variables

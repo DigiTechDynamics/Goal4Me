@@ -111,6 +111,19 @@ function RootNavigator() {
         <Stack.Screen name="money/goal/[id]" />
         <Stack.Screen name="money/lessons" />
         <Stack.Screen name="money/lesson/[id]" options={{ presentation: "fullScreenModal" }} />
+        <Stack.Screen name="running/level" options={{ presentation: "modal" }} />
+        <Stack.Screen name="running/setup" options={{ presentation: "modal" }} />
+        <Stack.Screen name="running/plan" />
+        <Stack.Screen name="running/guides" />
+        <Stack.Screen name="running/guide/[slug]" options={{ presentation: "fullScreenModal" }} />
+        <Stack.Screen
+          name="running/run/[runNumber]"
+          options={{
+            presentation: "fullScreenModal",
+            gestureEnabled: false,
+            animation: "slide_from_bottom",
+          }}
+        />
         <Stack.Screen name="paywall" options={{ presentation: "modal" }} />
         <Stack.Screen name="paynow/return" />
       </Stack.Protected>
