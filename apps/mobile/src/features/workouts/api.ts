@@ -48,12 +48,20 @@ interface ExerciseRow {
   easier_id: string | null;
   video_path: string | null;
   form_tips: string[];
+  description: string;
+  muscles: string[];
+  steps: string[];
+  breathing: string;
+  mistakes: string[];
+  benefit: string;
 }
 
 async function fetchLibrary(): Promise<ExerciseLibrary> {
   const { data, error } = await getSupabase()
     .from("exercises")
-    .select("id, slug, name, difficulty, met, contraindications, easier_id, video_path, form_tips")
+    .select(
+      "id, slug, name, difficulty, met, contraindications, easier_id, video_path, form_tips, description, muscles, steps, breathing, mistakes, benefit",
+    )
     .eq("is_published", true);
   if (error) throw error;
   const rows = (data ?? []) as ExerciseRow[];
@@ -72,6 +80,14 @@ async function fetchLibrary(): Promise<ExerciseLibrary> {
           easierId: row.easier_id,
           videoPath: row.video_path,
           formTips: row.form_tips,
+          details: {
+            description: row.description,
+            muscles: row.muscles,
+            steps: row.steps,
+            breathing: row.breathing,
+            mistakes: row.mistakes,
+            benefit: row.benefit,
+          },
         },
       ]),
     ),

@@ -172,13 +172,21 @@ CI fails if the committed seed is out of date.
 
 ### Exercise demonstrations
 
-Every exercise has an original animated figure (vector shapes, no third-party
+Every exercise has an original animated athlete (vector shapes, no third-party
 footage) in `apps/mobile/src/features/workouts/motion/`, keyed by slug. Each
 motion is a few keyframes of limb angles; `skeleton.ts` explains the angle
-convention, keeps the figure on the floor and frames it. A test fails if a
+convention, keeps the figure on the floor and frames it, and `body.ts` dresses
+the skeleton (tapered limbs, torso, face and hair, clothing, trainers, shaded
+far side, contact shadow). A test fails if a
 library exercise has no motion or a figure leaves the frame, so add a motion
 to `motions.ts` whenever you add an exercise. The animation pauses with the
 workout and holds a still pose when the device's "reduce motion" is on.
+
+Each exercise also has a how-to guide in `packages/content/src/exerciseGuides.ts`
+(steps, breathing, common mistakes, why it helps), seeded into the
+`exercises` table. A workout opens on an overview (time, calories, muscles,
+equipment and every move); any move's "How to do it" sheet can be opened there
+or mid-workout, which pauses the timer.
 
 Licensed video replaces the animation per exercise, with no code change: set
 `EXPO_PUBLIC_VIDEO_CDN_URL` and fill `exercises.video_path` for the clips you

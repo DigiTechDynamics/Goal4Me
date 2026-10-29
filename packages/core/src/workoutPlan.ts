@@ -20,6 +20,20 @@ export interface ExerciseInfo {
   easierId: string | null;
   videoPath: string | null;
   formTips: readonly string[];
+  /** Coaching content for the overview and "How to do it" sheet (absent in tests). */
+  details?: ExerciseDetails;
+}
+
+export interface ExerciseDetails {
+  description: string;
+  muscles: readonly string[];
+  /** One rep, start to finish. */
+  steps: readonly string[];
+  breathing: string;
+  /** Common mistakes, each with its fix. */
+  mistakes: readonly string[];
+  /** Why it's in the plan. */
+  benefit: string;
 }
 
 export interface PlanItem {
