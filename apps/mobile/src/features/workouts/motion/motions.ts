@@ -274,9 +274,12 @@ export const MOTIONS: Record<string, ExerciseMotion> = {
     "handNear",
     0.8,
     [
-      // Leg angles are solved so the hands stay on the seat and the feet on the floor.
-      { torso: 180, armNear: [-8, -8], armFar: [-6, -6], legNear: [70, 5], legFar: [68, 6] },
-      { torso: 175, armNear: [-65, -12], armFar: [-63, -11], legNear: [96, -8], legFar: [94, -7] },
+      // Hands on the seat edge behind, hips in front of the chair. Top: arms
+      // straight. Bottom: elbows bent straight back to about 90 degrees, hips
+      // sinking towards the floor. Leg angles are solved so the hands stay on
+      // the seat and the feet stay planted.
+      { torso: 180, armNear: [-12, -6], armFar: [-10, -5], legNear: [72, 8], legFar: [70, 9] },
+      { torso: 178, armNear: [-95, -3], armFar: [-93, -2], legNear: [120, -18], legFar: [118, -17] },
     ],
     { kind: "chair", joint: "handNear", side: "back" },
   ),
