@@ -11,14 +11,14 @@ import { AppText } from "@/components/ui";
 import { AuthProvider, useAuth } from "@/features/auth/AuthProvider";
 import { useOnboardingHydrated } from "@/features/onboarding/store";
 import { envErrors } from "@/lib/env";
-import { PERSIST_OPTIONS, queryClient } from "@/lib/queryClient";
+import { PERSIST_OPTIONS, QUERY_CACHE_KEY, queryClient } from "@/lib/queryClient";
 import { colors, spacing } from "@/theme/tokens";
 
 void SplashScreen.preventAutoHideAsync();
 
 const persister = createAsyncStoragePersister({
   storage: AsyncStorage,
-  key: "goal4me.query-cache",
+  key: QUERY_CACHE_KEY,
 });
 
 const navigationTheme = {
@@ -85,6 +85,9 @@ function RootNavigator() {
             animation: "slide_from_bottom",
           }}
         />
+        <Stack.Screen name="progress/log" options={{ presentation: "modal" }} />
+        <Stack.Screen name="progress/photos" />
+        <Stack.Screen name="account/delete" />
       </Stack.Protected>
       <Stack.Screen name="(onboarding)" />
     </Stack>

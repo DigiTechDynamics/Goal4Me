@@ -91,6 +91,7 @@ export function flushWorkoutQueue(userId: string): Promise<void> {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["program-plan", userId] }),
         queryClient.invalidateQueries({ queryKey: ["home-summary", userId] }),
+        queryClient.invalidateQueries({ queryKey: ["streak", userId] }),
       ]);
     }
   })().finally(() => {

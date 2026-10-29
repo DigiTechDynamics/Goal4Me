@@ -10,14 +10,17 @@ then track workouts, body progress, budgets and savings in one app.
 
 ## Status
 
-| Stage | Scope                                                                 | State      |
-| ----- | --------------------------------------------------------------------- | ---------- |
-| 1     | Monorepo, CI, core formulas, shared schemas, database schema with RLS | ✅ This PR |
-| 2     | Expo app shell, sign-in, onboarding quiz, result screen               | Next       |
-| 3     | Exercise library, programmes, workout player, offline cache           | Planned    |
-| 4     | Progress tracking, streaks, Health sync                               | Planned    |
-| 5     | Finance module and lessons                                            | Planned    |
-| 6     | RevenueCat + PayNow paywall, analytics, store builds                  | Planned    |
+| Stage | Scope                                                                                    | State   |
+| ----- | ---------------------------------------------------------------------------------------- | ------- |
+| 1     | Monorepo, CI, core formulas, shared schemas, database schema with RLS                    | Done    |
+| 2     | Expo app shell, sign-in, onboarding quiz, result screen                                  | Done    |
+| 3     | Exercise library, programmes, workout player, offline sync                               | Done    |
+| 4     | Weigh-ins + chart, measurements, private photos, streaks/badges, water, export, deletion | Done    |
+| 5     | Finance module and lessons                                                               | Next    |
+| 6     | RevenueCat + PayNow paywall, analytics, store builds, Apple Health / Health Connect sync | Planned |
+
+Apple Health and Health Connect need native modules that only run in an EAS
+development build, so they ship with the store builds in stage 6.
 
 ## Tech stack
 
@@ -129,6 +132,21 @@ pnpm --filter @goal4me/content generate
 CI fails if the committed seed is out of date. Exercise videos are optional:
 set `EXPO_PUBLIC_VIDEO_CDN_URL` and fill `exercises.video_path` once the stock
 clips are licensed; until then the player shows illustrated cards.
+
+## Progress and privacy
+
+- **Weigh-ins** are one per day (`log_body_metric` upserts). The chart shows
+  a 7-entry moving average, because daily weight swings 1–2 kg with water.
+- **Streaks** are updated by a database trigger when a workout is logged;
+  the app recomputes the _live_ streak (`liveStreak` in `packages/core`) so a
+  stale "12 days" is never shown after the user stops training.
+- **Progress photos** sit in a private bucket under `<user_id>/…`, enforced
+  by a Storage policy and a CHECK constraint, and are only shown through
+  signed URLs that expire after an hour (never persisted to the device).
+- **Export and deletion** (`export_my_data`, `delete_my_account`) live under
+  Profile → Your data. Deletion removes photos first, then the auth user;
+  every table cascades except PayNow payments, which are kept anonymised
+  for tax records. Sign-out also wipes the cached data on the device.
 
 ## Key formulas (`packages/core`)
 

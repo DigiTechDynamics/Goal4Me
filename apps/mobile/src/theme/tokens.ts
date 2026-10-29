@@ -19,6 +19,8 @@ export const colors = {
   success: "#3DDC97",
   info: "#5AA9FF",
   overlay: "rgba(11, 13, 18, 0.72)",
+  /** Near-opaque backdrop for full-screen viewers (photos). */
+  scrim: "rgba(11, 13, 18, 0.96)",
 } as const;
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 } as const;
