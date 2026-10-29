@@ -173,13 +173,22 @@ CI fails if the committed seed is out of date.
 ### Exercise demonstrations
 
 Every exercise has an original animated athlete (vector shapes, no third-party
-footage) in `apps/mobile/src/features/workouts/motion/`, keyed by slug. Each
-motion is a few keyframes of limb angles; `skeleton.ts` explains the angle
-convention, keeps the figure on the floor and frames it, and `body.ts` dresses
-the skeleton (tapered limbs, torso, face and hair, clothing, trainers, shaded
-far side, contact shadow). A test fails if a
-library exercise has no motion or a figure leaves the frame, so add a motion
-to `motions.ts` whenever you add an exercise. The animation pauses with the
+footage) in `apps/mobile/src/features/workouts/motion/`, keyed by slug:
+
+- `skeleton.ts`: adult proportions, the angle convention, a spine that can
+  round or arch, ankles and hands, and placing the body on the floor by its
+  surface (so lying poses rest on the back, not through it).
+- `rig.ts`: two-bone inverse kinematics for authoring. A pose says where the
+  hips are and where a hand or foot must be (a palm on the floor, a heel by a
+  wall, hands on a chair seat) and the elbow and knee angles are solved.
+- `playback.ts`: blends keyframes and locks each motion's `planted` joints in
+  place between them ("foot locking"), so hands and feet never slide mid-rep.
+- `body.ts`: the figure: muscle-shaped limbs (calves, quads, biceps), a torso
+  that follows the spine, hands, trainers, a face, clothing and shading.
+
+Tests fail if a library exercise has no motion, a figure leaves the frame or
+goes through the floor, or a planted hand or foot moves, so add a motion to
+`motions.ts` whenever you add an exercise. The animation pauses with the
 workout and holds a still pose when the device's "reduce motion" is on.
 
 Each exercise also has a how-to guide in `packages/content/src/exerciseGuides.ts`

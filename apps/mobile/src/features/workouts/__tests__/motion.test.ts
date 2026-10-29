@@ -3,7 +3,8 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { MOTIONS } from "../motion/motions";
 import { placeProp } from "../motion/props";
-import { CANVAS, frameAt, framing, SEGMENT } from "../motion/skeleton";
+import { frameAt } from "../motion/playback";
+import { CANVAS, framing, SEGMENT } from "../motion/skeleton";
 
 /** Slugs of every exercise in the content library (read as text: the app doesn't bundle it). */
 const librarySlugs = [
@@ -65,6 +66,49 @@ describe("exercise animations", () => {
       expect(moved).toBe(true);
     }
     if (motion.prop) expect(placeProp(motion, anchorX)).not.toBeNull();
+  });
+
+  const plantedSlugs = Object.keys(MOTIONS).filter((slug) => MOTIONS[slug]!.planted);
+
+  it("declares planted contacts for the exercises that need them", () => {
+    for (const slug of [
+      "push-up",
+      "squat",
+      "chair-dip",
+      "glute-bridge",
+      "cat-cow",
+      "pike-push-up",
+    ]) {
+      expect(plantedSlugs).toContain(slug);
+    }
+  });
+
+  it.each(plantedSlugs)("%s keeps its planted hands and feet still", (slug) => {
+    const { motion, frames } = samples(slug);
+    for (const joint of motion.planted!) {
+      const start = frames[0]![joint];
+      for (const frame of frames) {
+        const p = frame[joint];
+        expect(Math.hypot(p.x - start.x, p.y - start.y)).toBeLessThan(1.2);
+      }
+    }
+  });
+
+  it.each(plantedSlugs)("%s rests planted hands and feet on the floor", (slug) => {
+    const { motion, frames } = samples(slug);
+    const onProp = motion.prop?.joint;
+    for (const joint of motion.planted!) {
+      // Hands on a wall or chair seat, or whatever touches the prop, aren't on the floor.
+      if (joint === onProp || (motion.prop && joint.startsWith("hand"))) continue;
+      // Soles touch the floor; a flat palm puts the wrist just above it.
+      const height = joint.startsWith("hand")
+        ? 1.1
+        : joint.startsWith("toe") || joint.startsWith("heel")
+          ? 0
+          : null;
+      if (height === null) continue;
+      expect(Math.abs(CANVAS.floor - frames[0]![joint].y - height)).toBeLessThan(0.6);
+    }
   });
 
   it("loops seamlessly", () => {
