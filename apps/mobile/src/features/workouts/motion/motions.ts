@@ -279,7 +279,13 @@ export const MOTIONS: Record<string, ExerciseMotion> = {
       // sinking towards the floor. Leg angles are solved so the hands stay on
       // the seat and the feet stay planted.
       { torso: 180, armNear: [-12, -6], armFar: [-10, -5], legNear: [72, 8], legFar: [70, 9] },
-      { torso: 178, armNear: [-95, -3], armFar: [-93, -2], legNear: [120, -18], legFar: [118, -17] },
+      {
+        torso: 178,
+        armNear: [-95, -3],
+        armFar: [-93, -2],
+        legNear: [120, -18],
+        legFar: [118, -17],
+      },
     ],
     { kind: "chair", joint: "handNear", side: "back" },
   ),
