@@ -148,7 +148,7 @@ Cloud project.
 
 ### Run the SQL tests without Supabase
 
-CI applies the migrations to a plain Postgres 16 using a small stub of the
+CI applies the migrations to a plain Postgres 17 using a small stub of the
 Supabase `auth` and `storage` schemas:
 
 ```bash
