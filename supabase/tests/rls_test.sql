@@ -172,6 +172,34 @@ do $$ declare e jsonb := public.export_my_data(); begin
   assert not (e -> 'profiles' -> 0) ? 'user_id', 'user ids are stripped';
 end $$;
 
+-- Stage 5: first budget seeds 50/30/20 categories once; re-running only updates income.
+select public.setup_budget(date_trunc('month', current_date)::date, 100000, 'USD') as _ \gset
+select public.setup_budget(date_trunc('month', current_date)::date, 120000, 'USD') as _ \gset
+do $$ begin
+  assert (select income_minor from public.budgets where month = date_trunc('month', current_date)) = 120000,
+    'budget income updated';
+  -- Alice already had a 'Food' category, so no starter categories were added.
+  assert (select count(*) from public.budget_categories) = 1, 'existing categories are kept';
+  begin
+    perform public.setup_budget(current_date + 1 - extract(day from current_date)::int + 1, 1, 'USD');
+    raise exception 'FAIL: mid-month budget accepted';
+  exception when invalid_parameter_value then null; end;
+end $$;
+
+-- Lessons: 30 seeded, completion keeps the best quiz score.
+select public.complete_lesson((select id from public.lessons where slug = 'the-50-30-20-rule'), 1::smallint) as _ \gset
+select public.complete_lesson((select id from public.lessons where slug = 'the-50-30-20-rule'), 3::smallint) as _ \gset
+select public.complete_lesson((select id from public.lessons where slug = 'the-50-30-20-rule'), 2::smallint) as _ \gset
+do $$ begin
+  assert (select count(*) from public.lessons) = 30, 'thirty lessons seeded';
+  assert (select count(*) from public.lessons where not is_premium) = 5, 'one free lesson per track';
+  assert (select quiz_score from public.lesson_progress) = 3, 'best quiz score kept';
+  begin
+    perform public.complete_lesson(gen_random_uuid(), 3::smallint);
+    raise exception 'FAIL: unknown lesson accepted';
+  exception when no_data_found then null; end;
+end $$;
+
 -- ---- Act as Bob -------------------------------------------------------------
 select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', true) as _ \gset
 select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222"}', true) as _ \gset
@@ -191,6 +219,18 @@ do $$ begin
 
   update public.profiles set display_name = 'hijacked'
    where user_id = '11111111-1111-1111-1111-111111111111';
+end $$;
+
+-- Bob's first budget gets the starter categories, limits from his income.
+select public.setup_budget(date_trunc('month', current_date)::date, 200000, 'ZAR') as _ \gset
+do $$ begin
+  assert (select count(*) from public.budget_categories) = 8, 'eight starter categories';
+  assert (select monthly_limit_minor from public.budget_categories where name = 'Housing') = 50000,
+    'housing is 25% of income';
+  assert (select sum(monthly_limit_minor) from public.budget_categories where bucket = 'needs') = 100000,
+    'needs add up to 50%';
+  assert (select sum(monthly_limit_minor) from public.budget_categories where bucket = 'wants') = 60000,
+    'wants add up to 30%';
 end $$;
 
 -- Bob deletes his own account: refused while a photo file remains, then works.

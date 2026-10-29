@@ -88,6 +88,13 @@ function RootNavigator() {
         <Stack.Screen name="progress/log" options={{ presentation: "modal" }} />
         <Stack.Screen name="progress/photos" />
         <Stack.Screen name="account/delete" />
+        <Stack.Screen name="money/expense" options={{ presentation: "modal" }} />
+        <Stack.Screen name="money/income" options={{ presentation: "modal" }} />
+        <Stack.Screen name="money/category" options={{ presentation: "modal" }} />
+        <Stack.Screen name="money/goal-new" options={{ presentation: "modal" }} />
+        <Stack.Screen name="money/goal/[id]" />
+        <Stack.Screen name="money/lessons" />
+        <Stack.Screen name="money/lesson/[id]" options={{ presentation: "fullScreenModal" }} />
       </Stack.Protected>
       <Stack.Screen name="(onboarding)" />
     </Stack>

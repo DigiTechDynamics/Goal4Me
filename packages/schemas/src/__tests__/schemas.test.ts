@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   bodyMetricSchema,
+  budgetCategorySchema,
+  budgetSetupSchema,
   isoDate,
   paynowCheckoutSchema,
   PHOTO_MAX_BYTES,
   progressPhotoSchema,
   quizAnswersSchema,
+  savingsContributionSchema,
   savingsGoalSchema,
   transactionSchema,
   type QuizAnswers,
@@ -148,5 +151,32 @@ describe("tracking", () => {
       progressPhotoSchema.safeParse({ ...photo, sizeBytes: PHOTO_MAX_BYTES + 1 }).success,
     ).toBe(false);
     expect(progressPhotoSchema.safeParse({ ...photo, mimeType: "image/gif" }).success).toBe(false);
+  });
+});
+
+describe("money", () => {
+  const id = "0b7c1d4e-9f7a-4c1e-8a57-2f8f1f1b6a10";
+
+  it("allows withdrawals but not zero contributions", () => {
+    const base = { id, goalId: id, madeOn: "2026-10-28" };
+    expect(savingsContributionSchema.safeParse({ ...base, amountMinor: -500 }).success).toBe(true);
+    expect(savingsContributionSchema.safeParse({ ...base, amountMinor: 0 }).success).toBe(false);
+  });
+
+  it("requires budgets to start on the first of the month", () => {
+    const ok = { month: "2026-10-01", incomeMinor: 100_000, currency: "USD" };
+    expect(budgetSetupSchema.safeParse(ok).success).toBe(true);
+    expect(budgetSetupSchema.safeParse({ ...ok, month: "2026-10-02" }).success).toBe(false);
+    expect(budgetSetupSchema.safeParse({ ...ok, incomeMinor: 0 }).success).toBe(false);
+  });
+
+  it("trims category names and limits their length", () => {
+    expect(
+      budgetCategorySchema.parse({ name: "  Rent ", bucket: "needs", limitMinor: null }).name,
+    ).toBe("Rent");
+    expect(
+      budgetCategorySchema.safeParse({ name: "x".repeat(41), bucket: "wants", limitMinor: 1 })
+        .success,
+    ).toBe(false);
   });
 });

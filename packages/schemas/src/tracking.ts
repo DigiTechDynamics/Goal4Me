@@ -73,3 +73,30 @@ export const savingsGoalSchema = z.object({
   isEmergencyFund: z.boolean().default(false),
 });
 export type SavingsGoalInput = z.infer<typeof savingsGoalSchema>;
+
+export const savingsContributionSchema = z.object({
+  id: clientId,
+  goalId: z.string().uuid(),
+  // Positive = deposit, negative = withdrawal; never zero.
+  amountMinor: z
+    .number()
+    .int()
+    .refine((value) => value !== 0, "Enter an amount")
+    .refine((value) => Math.abs(value) <= 1_000_000_000_00, "That amount is too large"),
+  madeOn: isoDate,
+});
+export type SavingsContributionInput = z.infer<typeof savingsContributionSchema>;
+
+export const budgetSetupSchema = z.object({
+  month: isoDate.refine((value) => value.endsWith("-01"), "Budgets start on the 1st"),
+  incomeMinor: minorAmount.min(100, "Enter your monthly income"),
+  currency,
+});
+export type BudgetSetupInput = z.infer<typeof budgetSetupSchema>;
+
+export const budgetCategorySchema = z.object({
+  name: z.string().trim().min(1, "Name the category").max(40, "Keep it under 40 characters"),
+  bucket: z.enum(["needs", "wants", "savings"]),
+  limitMinor: minorAmount.nullable(),
+});
+export type BudgetCategoryInput = z.infer<typeof budgetCategorySchema>;
