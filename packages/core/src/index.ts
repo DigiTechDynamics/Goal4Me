@@ -12,6 +12,7 @@ export * from "./energy";
 export * from "./errors";
 export * from "./money";
 export * from "./nutrition";
+export * from "./premium";
 export * from "./programs";
 export * from "./progress";
 export * from "./projection";

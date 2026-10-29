@@ -90,6 +90,8 @@ export interface ProgramPlan {
   userProgramId: string;
   programName: string;
   durationDays: number;
+  /** Premium programmes lock every workout after the first 3 for free users. */
+  programIsPremium: boolean;
   currentDay: number;
   intensityFactor: number;
   completedAt: string | null;
@@ -109,7 +111,7 @@ async function fetchPlan(userId: string): Promise<ProgramPlan | null> {
     db
       .from("user_programs")
       .select(
-        "id, program_id, current_day, intensity_factor, completed_at, programs(name, duration_days)",
+        "id, program_id, current_day, intensity_factor, completed_at, programs(name, duration_days, is_premium)",
       )
       .eq("user_id", userId)
       .eq("is_active", true)
@@ -125,7 +127,11 @@ async function fetchPlan(userId: string): Promise<ProgramPlan | null> {
   if (goal.error) throw goal.error;
   if (!active.data || !goal.data) return null;
 
-  const program = active.data.programs as unknown as { name: string; duration_days: number } | null;
+  const program = active.data.programs as unknown as {
+    name: string;
+    duration_days: number;
+    is_premium: boolean;
+  } | null;
   if (!program) return null;
 
   const [days, sessions] = await Promise.all([
@@ -148,6 +154,7 @@ async function fetchPlan(userId: string): Promise<ProgramPlan | null> {
     userProgramId: active.data.id,
     programName: program.name,
     durationDays: program.duration_days,
+    programIsPremium: program.is_premium,
     currentDay: active.data.current_day,
     intensityFactor: Number(active.data.intensity_factor),
     completedAt: active.data.completed_at,

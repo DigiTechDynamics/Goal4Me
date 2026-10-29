@@ -26,9 +26,9 @@ describe("lessons", () => {
     }
   });
 
-  it("renders idempotent SQL with the first lesson of each track free", () => {
+  it("renders idempotent SQL with 3 free lessons", () => {
     const sql = renderLessonsSql();
     expect(sql.match(/on conflict \(slug\) do update/g)).toHaveLength(30);
-    expect(sql.match(/::jsonb, '[^']*(?:''[^']*)*', false, true\)/g)).toHaveLength(5);
+    expect(sql.match(/::jsonb, '[^']*(?:''[^']*)*', false, true\)/g)).toHaveLength(3);
   });
 });

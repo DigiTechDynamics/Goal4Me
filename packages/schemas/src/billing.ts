@@ -15,3 +15,14 @@ export const paynowCheckoutSchema = z.discriminatedUnion("method", [
   }),
 ]);
 export type PaynowCheckoutRequest = z.infer<typeof paynowCheckoutSchema>;
+
+/**
+ * Launch prices in US cents (spec: Monetisation). PayNow charges these on the
+ * web; store prices are set per country in App Store Connect / Play Console.
+ * Kept in sync with supabase/functions/_shared/plans.ts by a unit test.
+ */
+export const PLAN_PRICES_USD: Record<PlanId, { amountMinor: number; weeks: number }> = {
+  premium_weekly: { amountMinor: 699, weeks: 1 },
+  premium_quarterly: { amountMinor: 2999, weeks: 13 },
+  premium_yearly: { amountMinor: 5999, weeks: 52 },
+};

@@ -95,6 +95,8 @@ function RootNavigator() {
         <Stack.Screen name="money/goal/[id]" />
         <Stack.Screen name="money/lessons" />
         <Stack.Screen name="money/lesson/[id]" options={{ presentation: "fullScreenModal" }} />
+        <Stack.Screen name="paywall" options={{ presentation: "modal" }} />
+        <Stack.Screen name="paynow/return" />
       </Stack.Protected>
       <Stack.Screen name="(onboarding)" />
     </Stack>

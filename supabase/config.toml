@@ -27,3 +27,11 @@ enable_confirmations = true
 
 [storage]
 file_size_limit = "10MiB"
+
+# Called by PayNow and RevenueCat, which don't send a Supabase JWT. Each
+# function authenticates the caller itself (PayNow hash / webhook secret).
+[functions.paynow-result]
+verify_jwt = false
+
+[functions.revenuecat-webhook]
+verify_jwt = false

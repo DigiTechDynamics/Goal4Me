@@ -1,0 +1,13 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.118.0",
+    "zod": "npm:zod@3.25.76"
+  },
+  "compilerOptions": { "strict": true },
+  "lint": { "rules": { "tags": ["recommended"] } },
+  "fmt": { "lineWidth": 100 },
+  "tasks": {
+    "check": "deno check */index.ts _shared/*.ts",
+    "test": "deno test --allow-env _shared/"
+  }
+}

@@ -10,9 +10,12 @@ import { useKeepAwake } from "expo-keep-awake";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import { Alert, Platform, Pressable, StyleSheet, View } from "react-native";
+import { BackButton } from "@/components/BackButton";
 import { ErrorView, LoadingView } from "@/components/StateViews";
 import { AppText, Button, Card, ProgressBar, Screen } from "@/components/ui";
 import { useUserId } from "@/features/auth/AuthProvider";
+import { LockedCard } from "@/features/billing/components/LockedCard";
+import { useDayLocks } from "@/features/billing/gating";
 import { useHomeSummary } from "@/features/home/api";
 import { useExerciseLibrary, useProgramDay, useProgramPlan } from "@/features/workouts/api";
 import { CountdownRing } from "@/features/workouts/components/CountdownRing";
@@ -38,6 +41,9 @@ export default function WorkoutScreen() {
   const library = useExerciseLibrary();
   const plan = useProgramPlan(userId);
   const day = useProgramDay(dayId);
+  const locks = useDayLocks(userId, plan.data);
+  const planDay = plan.data?.days.find((d) => d.id === dayId);
+  const locked = !!planDay && locks.isLocked(planDay);
 
   const workout = useMemo(() => {
     if (!library.data || !plan.data || !day.data) return null;
@@ -65,7 +71,21 @@ export default function WorkoutScreen() {
       />
     );
   }
-  if (!workout || !plan.data || !day.data) return <LoadingView label="Preparing your workout" />;
+  if (!locks.ready || !plan.data) return <LoadingView label="Preparing your workout" />;
+  // The database also hides locked days' exercises, so an empty premium day means locked.
+  if (locked || (plan.data.programIsPremium && day.data?.items.length === 0 && !locks.isPremium)) {
+    return (
+      <Screen>
+        <BackButton variant="close" />
+        <LockedCard
+          reason="workout"
+          title={planDay ? `Day ${planDay.dayNumber} is a Premium workout` : "Premium workout"}
+          message="You've done your free workouts. Go Premium to unlock every day of your plan, adapted as you get stronger."
+        />
+      </Screen>
+    );
+  }
+  if (!workout || !day.data) return <LoadingView label="Preparing your workout" />;
   if (workout.steps.length === 0) {
     return (
       <ErrorView

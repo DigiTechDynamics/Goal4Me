@@ -187,17 +187,50 @@ do $$ begin
 end $$;
 
 -- Lessons: 30 seeded, completion keeps the best quiz score.
-select public.complete_lesson((select id from public.lessons where slug = 'the-50-30-20-rule'), 1::smallint) as _ \gset
-select public.complete_lesson((select id from public.lessons where slug = 'the-50-30-20-rule'), 3::smallint) as _ \gset
-select public.complete_lesson((select id from public.lessons where slug = 'the-50-30-20-rule'), 2::smallint) as _ \gset
+select public.complete_lesson((select id from public.lessons where slug = 'where-your-money-goes'), 1::smallint) as _ \gset
+select public.complete_lesson((select id from public.lessons where slug = 'where-your-money-goes'), 3::smallint) as _ \gset
+select public.complete_lesson((select id from public.lessons where slug = 'where-your-money-goes'), 2::smallint) as _ \gset
 do $$ begin
-  assert (select count(*) from public.lessons) = 30, 'thirty lessons seeded';
-  assert (select count(*) from public.lessons where not is_premium) = 5, 'one free lesson per track';
+  assert (select count(*) from public.lesson_catalog) = 30, 'thirty lessons listed';
+  assert (select count(*) from public.lessons) = 3, 'free users can only open the free lessons';
+  assert (select count(*) from public.lesson_catalog where not is_premium) = 3, 'three free lessons';
   assert (select quiz_score from public.lesson_progress) = 3, 'best quiz score kept';
   begin
     perform public.complete_lesson(gen_random_uuid(), 3::smallint);
     raise exception 'FAIL: unknown lesson accepted';
   exception when no_data_found then null; end;
+end $$;
+
+-- Stage 6: free users see the first 3 workout days of a premium programme only.
+do $$ declare limit_day smallint; begin
+  select public.free_day_limit(p.id) into limit_day from public.programs p where p.slug = 'fat-burn-home';
+  assert limit_day = 5, format('3rd workout day of ARBRARB is day 5, got %s', limit_day);
+  assert not public.is_premium_user(), 'Alice starts on the free tier';
+  assert (select count(distinct d.day_number) from public.program_items i
+            join public.program_days d on d.id = i.program_day_id
+            join public.programs p on p.id = d.program_id
+           where p.slug = 'fat-burn-home') = 3, 'three unlocked workouts';
+end $$;
+
+reset role;
+insert into public.entitlements (user_id, product_id, store, is_active, expires_at)
+values ('11111111-1111-1111-1111-111111111111', 'premium_yearly', 'paynow', true, now() + interval '1 year');
+set local role authenticated;
+do $$ begin
+  assert public.is_premium_user(), 'premium after the entitlement is granted';
+  assert (select count(*) from public.lessons) = 30, 'premium users open every lesson';
+  assert (select count(distinct d.day_number) from public.program_items i
+            join public.program_days d on d.id = i.program_day_id
+            join public.programs p on p.id = d.program_id
+           where p.slug = 'fat-burn-home') = 16, 'every workout day unlocked (16 of 28 are workouts)';
+end $$;
+reset role;
+update public.entitlements set expires_at = now() - interval '1 day'
+ where user_id = '11111111-1111-1111-1111-111111111111';
+set local role authenticated;
+do $$ begin
+  assert not public.is_premium_user(), 'an expired entitlement is not premium';
+  assert (select count(*) from public.lessons) = 3, 'locked again after expiry';
 end $$;
 
 -- ---- Act as Bob -------------------------------------------------------------

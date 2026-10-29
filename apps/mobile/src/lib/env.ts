@@ -11,6 +11,10 @@ const envSchema = z.object({
   EXPO_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20, "EXPO_PUBLIC_SUPABASE_ANON_KEY is missing"),
   // Optional until exercise videos are licensed; without it the player shows illustrated cards.
   EXPO_PUBLIC_VIDEO_CDN_URL: z.string().url().optional(),
+  // RevenueCat public SDK keys (App Store / Play subscriptions). Optional until
+  // the store accounts exist; without them the native paywall says so.
+  EXPO_PUBLIC_REVENUECAT_IOS_KEY: z.string().startsWith("appl_").optional(),
+  EXPO_PUBLIC_REVENUECAT_ANDROID_KEY: z.string().startsWith("goog_").optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -19,6 +23,8 @@ const parsed = envSchema.safeParse({
   EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,
   EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
   EXPO_PUBLIC_VIDEO_CDN_URL: process.env.EXPO_PUBLIC_VIDEO_CDN_URL || undefined,
+  EXPO_PUBLIC_REVENUECAT_IOS_KEY: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY || undefined,
+  EXPO_PUBLIC_REVENUECAT_ANDROID_KEY: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY || undefined,
 });
 
 export const env: Env | null = parsed.success ? parsed.data : null;

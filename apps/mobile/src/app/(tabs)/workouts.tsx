@@ -3,6 +3,7 @@ import { StyleSheet } from "react-native";
 import { ErrorView, LoadingView } from "@/components/StateViews";
 import { AppText, Button, Card, Screen } from "@/components/ui";
 import { useUserId } from "@/features/auth/AuthProvider";
+import { openPaywall, useDayLocks } from "@/features/billing/gating";
 import { NeedsPlan } from "@/features/home/NeedsPlan";
 import { nextWorkoutDay, useProgramPlan } from "@/features/workouts/api";
 import { ProgramCalendar } from "@/features/workouts/components/ProgramCalendar";
@@ -13,6 +14,7 @@ import { spacing } from "@/theme/tokens";
 export default function Workouts() {
   const userId = useUserId();
   const plan = useProgramPlan(userId);
+  const locks = useDayLocks(userId, plan.data);
 
   if (plan.isPending) return <LoadingView />;
   if (plan.isError)
@@ -20,7 +22,15 @@ export default function Workouts() {
 
   const data = plan.data;
   const next = data ? nextWorkoutDay(data) : null;
-  const open = (dayId: string) => router.push({ pathname: "/workout/[dayId]", params: { dayId } });
+  const nextLocked = !!next && locks.isLocked(next);
+  const open = (dayId: string) => {
+    const day = data?.days.find((d) => d.id === dayId);
+    if (day && locks.isLocked(day)) {
+      openPaywall("workout");
+      return;
+    }
+    router.push({ pathname: "/workout/[dayId]", params: { dayId } });
+  };
 
   return (
     <Screen>
@@ -50,14 +60,27 @@ export default function Workouts() {
                 <AppText color="textMuted">
                   About {data.minutesPerSession} minutes · no equipment
                 </AppText>
-                <Button label="Start workout" onPress={() => open(next.id)} />
+                {nextLocked ? (
+                  <AppText variant="caption" color="brand">
+                    You've finished your free workouts. Premium unlocks the rest of your plan.
+                  </AppText>
+                ) : null}
+                <Button
+                  label={nextLocked ? "Unlock with Premium" : "Start workout"}
+                  onPress={() => open(next.id)}
+                />
               </>
             )}
           </Card>
           <AppText variant="overline" color="textMuted">
             Your {data.durationDays}-day plan · {data.completedDayIds.length} done
           </AppText>
-          <ProgramCalendar plan={data} nextDayId={next?.id ?? null} onOpen={open} />
+          <ProgramCalendar
+            plan={data}
+            nextDayId={next?.id ?? null}
+            isLocked={locks.isLocked}
+            onOpen={open}
+          />
         </>
       )}
     </Screen>

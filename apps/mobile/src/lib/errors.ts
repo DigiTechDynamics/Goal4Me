@@ -15,9 +15,15 @@ const KNOWN_MESSAGES: [RegExp, string][] = [
   [/user cancel|canceled|cancelled/i, ""],
 ];
 
+/** An error whose message was written for users (e.g. from our Edge Functions). */
+export class UserFacingError extends Error {
+  override name = "UserFacingError";
+}
+
 export const GENERIC_ERROR = "Something went wrong. Please try again.";
 
 export function toUserMessage(error: unknown): string {
+  if (error instanceof UserFacingError) return error.message;
   const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
   for (const [pattern, friendly] of KNOWN_MESSAGES) {
     if (pattern.test(message)) return friendly;

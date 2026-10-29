@@ -4,6 +4,8 @@ import { BackButton } from "@/components/BackButton";
 import { ErrorView, LoadingView } from "@/components/StateViews";
 import { AppText, Card, Screen } from "@/components/ui";
 import { useUserId } from "@/features/auth/AuthProvider";
+import { useIsPremium } from "@/features/billing/api";
+import { openPaywall } from "@/features/billing/gating";
 import { Meter } from "@/features/money/components/Meter";
 import { TRACK_LABEL, TRACK_ORDER, useLessons } from "@/features/money/lessons";
 import { toUserMessage } from "@/lib/errors";
@@ -13,6 +15,7 @@ import { colors, radii, spacing } from "@/theme/tokens";
 export default function Lessons() {
   const userId = useUserId();
   const lessons = useLessons(userId);
+  const isPremium = useIsPremium(userId);
 
   if (lessons.isPending) return <LoadingView />;
   if (lessons.isError) {
@@ -45,37 +48,45 @@ export default function Lessons() {
               </AppText>
             </View>
             <Meter value={done / inTrack.length} color="info" />
-            {inTrack.map((lesson) => (
-              <Pressable
-                key={lesson.id}
-                style={styles.lesson}
-                onPress={() =>
-                  router.push({ pathname: "/money/lesson/[id]", params: { id: lesson.id } })
-                }
-                accessibilityRole="button"
-                accessibilityLabel={`${lesson.title}${lesson.completed ? ", completed" : ""}`}
-              >
-                <View style={[styles.tick, lesson.completed && styles.tickDone]}>
-                  {lesson.completed ? (
-                    <AppText variant="caption" color="onBrand">
-                      ✓
-                    </AppText>
-                  ) : (
-                    <AppText variant="caption" color="textSubtle">
-                      {lesson.position}
-                    </AppText>
-                  )}
-                </View>
-                <AppText style={styles.flex} color={lesson.completed ? "textMuted" : "text"}>
-                  {lesson.title}
-                </AppText>
-                {lesson.isPremium ? (
-                  <AppText variant="caption" color="brand">
-                    Premium
+            {inTrack.map((lesson) => {
+              const locked = lesson.isPremium && !isPremium;
+              return (
+                <Pressable
+                  key={lesson.id}
+                  style={styles.lesson}
+                  onPress={() =>
+                    locked
+                      ? openPaywall("lesson")
+                      : router.push({ pathname: "/money/lesson/[id]", params: { id: lesson.id } })
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel={`${lesson.title}${lesson.completed ? ", completed" : locked ? ", Premium" : ""}`}
+                >
+                  <View style={[styles.tick, lesson.completed && styles.tickDone]}>
+                    {lesson.completed ? (
+                      <AppText variant="caption" color="onBrand">
+                        ✓
+                      </AppText>
+                    ) : (
+                      <AppText variant="caption" color="textSubtle">
+                        {lesson.position}
+                      </AppText>
+                    )}
+                  </View>
+                  <AppText
+                    style={styles.flex}
+                    color={lesson.completed || locked ? "textMuted" : "text"}
+                  >
+                    {lesson.title}
                   </AppText>
-                ) : null}
-              </Pressable>
-            ))}
+                  {locked ? (
+                    <AppText variant="caption" color="brand">
+                      🔒 Premium
+                    </AppText>
+                  ) : null}
+                </Pressable>
+              );
+            })}
           </Card>
         );
       })}

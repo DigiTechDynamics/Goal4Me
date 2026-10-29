@@ -18,6 +18,8 @@ import { BudgetSetupCard } from "@/features/money/components/BudgetSetupCard";
 import { Meter } from "@/features/money/components/Meter";
 import { MoneyScoreCard } from "@/features/money/components/MoneyScoreCard";
 import { BUCKET_LABEL, money, moneyWhole } from "@/features/money/format";
+import { useIsPremium } from "@/features/billing/api";
+import { openPaywall } from "@/features/billing/gating";
 import { useLessons } from "@/features/money/lessons";
 import { toUserMessage } from "@/lib/errors";
 import { formatDate, localToday } from "@/lib/format";
@@ -34,6 +36,7 @@ export default function Money() {
   const budgetMonth = useBudgetMonth(userId, month);
   const goals = useSavingsGoals(userId);
   const lessons = useLessons(userId);
+  const isPremium = useIsPremium(userId);
   const activity = useMoneyActivity(userId, today);
   const remove = useDeleteTransaction(userId);
 
@@ -97,7 +100,10 @@ export default function Money() {
   const emergency = goals.data.find((g) => g.isEmergencyFund);
   const categoryName = new Map(categories.map((c) => [c.id, c.name]));
   const lessonList = lessons.data ?? [];
-  const nextLesson = lessonList.find((l) => !l.completed);
+  // Suggest the next lesson the user can open; a locked one only once the free ones are done.
+  const todo = lessonList.filter((l) => !l.completed);
+  const nextLesson = todo.find((l) => !l.isPremium || isPremium) ?? todo[0];
+  const nextLocked = !!nextLesson && nextLesson.isPremium && !isPremium;
 
   const confirmDelete = (t: Transaction) => {
     const label = `${money(t.amountMinor, currency)} · ${categoryName.get(t.categoryId) ?? "Expense"}`;
@@ -270,9 +276,11 @@ export default function Money() {
         </AppText>
         {nextLesson ? (
           <Button
-            label="Start 3-minute lesson"
+            label={nextLocked ? "Unlock all 30 lessons" : "Start 3-minute lesson"}
             onPress={() =>
-              router.push({ pathname: "/money/lesson/[id]", params: { id: nextLesson.id } })
+              nextLocked
+                ? openPaywall("lesson")
+                : router.push({ pathname: "/money/lesson/[id]", params: { id: nextLesson.id } })
             }
           />
         ) : null}

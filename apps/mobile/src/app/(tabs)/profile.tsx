@@ -5,12 +5,13 @@ import { AppText, Banner, Button, Card, Screen } from "@/components/ui";
 import { exportMyData } from "@/features/account/api";
 import { signOut } from "@/features/auth/api";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { PremiumCard } from "@/features/billing/components/PremiumCard";
 import { useHomeSummary } from "@/features/home/api";
 import { formatHeight } from "@/features/onboarding/units";
 import { toUserMessage } from "@/lib/errors";
 import { colors, spacing } from "@/theme/tokens";
 
-/** Profile tab: account details, sign out and the legal notice. */
+/** Profile tab: plan, account details, data rights, sign out and the legal notice. */
 export default function Profile() {
   const { session } = useAuth();
   const summary = useHomeSummary(session?.user.id ?? "");
@@ -64,6 +65,7 @@ export default function Profile() {
         Profile
       </AppText>
       {error ? <Banner message={error} /> : null}
+      {session ? <PremiumCard userId={session.user.id} /> : null}
       <Card>
         <Row label="Email" value={session?.user.email ?? "—"} />
         <Row

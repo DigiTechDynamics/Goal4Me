@@ -49,3 +49,20 @@ jobs:
       - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/supabase_stub.sql
       - run: for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done
       - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rls_test.sql
+
+  functions:
+    # Supabase Edge Functions (Deno): type-check, lint, format and unit tests
+    # for the payment logic (PayNow signatures, entitlement rules).
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: supabase/functions
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno fmt --check
+      - run: deno lint
+      - run: deno check */index.ts _shared/*.ts
+      - run: deno test --allow-env _shared/

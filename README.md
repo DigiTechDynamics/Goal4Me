@@ -10,17 +10,18 @@ then track workouts, body progress, budgets and savings in one app.
 
 ## Status
 
-| Stage | Scope                                                                                    | State   |
-| ----- | ---------------------------------------------------------------------------------------- | ------- |
-| 1     | Monorepo, CI, core formulas, shared schemas, database schema with RLS                    | Done    |
-| 2     | Expo app shell, sign-in, onboarding quiz, result screen                                  | Done    |
-| 3     | Exercise library, programmes, workout player, offline sync                               | Done    |
-| 4     | Weigh-ins + chart, measurements, private photos, streaks/badges, water, export, deletion | Done    |
-| 5     | Finance module and lessons                                                               | Next    |
-| 6     | RevenueCat + PayNow paywall, analytics, store builds, Apple Health / Health Connect sync | Planned |
+| Stage | Scope                                                                                    | State |
+| ----- | ---------------------------------------------------------------------------------------- | ----- |
+| 1     | Monorepo, CI, core formulas, shared schemas, database schema with RLS                    | Done  |
+| 2     | Expo app shell, sign-in, onboarding quiz, result screen                                  | Done  |
+| 3     | Exercise library, programmes, workout player, offline sync                               | Done  |
+| 4     | Weigh-ins + chart, measurements, private photos, streaks/badges, water, export, deletion | Done  |
+| 5     | Finance module and lessons                                                               | Done  |
+| 6a    | Premium: PayNow (web) + RevenueCat (stores), paywall, free-tier locks                    | Done  |
+| 6b    | Analytics, crash reporting, store builds, Apple Health / Health Connect sync             | Next  |
 
 Apple Health and Health Connect need native modules that only run in an EAS
-development build, so they ship with the store builds in stage 6.
+development build, so they ship with the store builds in stage 6b.
 
 ## Tech stack
 
@@ -54,6 +55,8 @@ goal4me/
 ├── supabase/
 │   ├── config.toml         # Local Supabase settings
 │   ├── migrations/         # SQL schema, RLS policies, triggers, storage bucket
+│   ├── functions/          # Edge Functions (Deno): PayNow checkout/result/status,
+│   │                       # RevenueCat webhook; _shared/ holds tested helpers
 │   └── tests/              # SQL tests for RLS and triggers (run in CI)
 └── .github/workflows/ci.yml
 ```
@@ -160,8 +163,53 @@ clips are licensed; until then the player shows illustrated cards.
   lessons done (20) + days in a row with money activity (15).
 - **Lessons** live in `packages/content/src/lessons.ts` (5 tracks × 6) and are
   generated into `supabase/migrations/20261028050000_seed_lessons.sql`. The
-  first lesson of each track is free; the rest are marked premium (the
-  paywall arrives in stage 6).
+  first lessons of Budgeting, Saving and Debt are free; the other 27 are premium.
+
+## Premium and payments
+
+The free tier is the quiz and results, the first 3 workouts of each programme,
+weight logging and 3 money lessons. **The database enforces this**
+(`20261028070000_premium_gating.sql`): free users can't read the exercises of
+locked days or the content of premium lessons, whatever the app does. The app
+shows locks and a paywall instead of empty screens.
+
+| Where         | How people pay                         | Renews | Grants premium via                                                  |
+| ------------- | -------------------------------------- | ------ | ------------------------------------------------------------------- |
+| iOS / Android | App Store / Google Play via RevenueCat | Yes    | `revenuecat-webhook` Edge Function                                  |
+| Web           | PayNow: card, EcoCash, OneMoney        | No     | `paynow-result` (PayNow callback) and `paynow-status` (app polling) |
+
+- Store rules forbid outside payment links in the native apps, so PayNow is
+  only offered on the web.
+- PayNow results are never trusted from the browser: each one is confirmed by
+  polling PayNow and checking its SHA-512 hash before premium is granted, and
+  a payment can only be applied once.
+- Prices: weekly $6.99, quarterly $29.99, yearly $59.99 (7-day free trial in
+  the stores). `PLAN_PRICES_USD` in `packages/schemas` and
+  `supabase/functions/_shared/plans.ts` are kept identical by a unit test.
+
+### Setting up payments
+
+1. **PayNow**: create an integration in the PayNow merchant dashboard, then
+   `supabase secrets set PAYNOW_INTEGRATION_ID=… PAYNOW_INTEGRATION_KEY=…`
+   plus `PAYNOW_RESULT_URL` (the deployed `paynow-result` function URL),
+   `PAYNOW_RETURN_URL` (`https://<your web app>/paynow/return`) and `APP_ORIGIN`.
+2. **RevenueCat**: create products `premium_weekly`, `premium_quarterly` and
+   `premium_yearly` in App Store Connect and Play Console, attach them to an
+   entitlement named `premium` and a "default" offering (Weekly, 3 Month,
+   Annual packages). Put the public SDK keys in `EXPO_PUBLIC_REVENUECAT_IOS_KEY`
+   / `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`, add a webhook to the deployed
+   `revenuecat-webhook` function with the Authorization header `Bearer <secret>`, and set that secret with
+   `supabase secrets set REVENUECAT_WEBHOOK_SECRET=…`.
+3. Deploy: `supabase functions deploy` (the two webhooks have JWT checks off in
+   `config.toml` because PayNow and RevenueCat can't send a Supabase token;
+   they verify their own signatures instead).
+
+### Test the Edge Functions
+
+```bash
+cd supabase/functions
+deno fmt --check && deno lint && deno check */*.ts && deno test -A
+```
 
 ## Key formulas (`packages/core`)
 
