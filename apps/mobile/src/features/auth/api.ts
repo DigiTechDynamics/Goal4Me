@@ -7,8 +7,15 @@ import { logger } from "@/lib/logger";
 import { getSupabase } from "@/lib/supabase";
 import type { SignInInput, SignUpInput } from "./validation";
 
-/** Deep link the auth provider sends the user back to (goal4me://auth-callback). */
+/**
+ * Where email links and OAuth send the user back to: goal4me://auth-callback
+ * in the apps, http(s)://<host>/auth-callback on the web. `next` tells the
+ * callback screen where to go once signed in.
+ */
 const redirectTo = Linking.createURL("auth-callback");
+const recoveryRedirectTo = Linking.createURL("auth-callback", {
+  queryParams: { next: "new-password" },
+});
 
 export interface SignUpResult {
   /** False when the project requires email confirmation before first sign-in. */
@@ -32,8 +39,34 @@ export async function signInWithEmail({ email, password }: SignInInput): Promise
 }
 
 export async function sendPasswordReset(email: string): Promise<void> {
-  const { error } = await getSupabase().auth.resetPasswordForEmail(email, { redirectTo });
+  const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
+    redirectTo: recoveryRedirectTo,
+  });
   if (error) throw error;
+}
+
+/**
+ * Finishes an email link or OAuth redirect. In the apps the PKCE code is
+ * exchanged here; on the web the Supabase client already exchanged it while
+ * starting up (detectSessionInUrl), so we only check that a session exists.
+ */
+export async function completeAuthRedirect(code: string | null): Promise<void> {
+  const supabase = getSupabase();
+  if (Platform.OS !== "web" && code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) throw error;
+    return;
+  }
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  if (!data.session) throw new Error("link is invalid or has expired");
+}
+
+/** Sets a new password for the signed-in user (after a reset link). */
+export async function updatePassword(password: string): Promise<void> {
+  const { error } = await getSupabase().auth.updateUser({ password });
+  if (error) throw error;
+  logger.info("Password changed");
 }
 
 /** Native "Sign in with Apple" (iOS only). Apple requires it whenever Google is offered. */

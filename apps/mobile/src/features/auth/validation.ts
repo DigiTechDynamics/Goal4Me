@@ -12,15 +12,25 @@ export const signInSchema = z.object({
   password: z.string().min(1, "Enter your password"),
 });
 
+/** Same rules for a new account and a reset; 72 is bcrypt's input limit. */
+export const passwordSchema = z
+  .string()
+  .min(8, "Use at least 8 characters")
+  .max(72, "Use 72 characters or fewer")
+  .regex(/[A-Za-z]/, "Include at least one letter")
+  .regex(/\d/, "Include at least one number");
+
 export const signUpSchema = z.object({
   email: emailSchema,
-  password: z
-    .string()
-    .min(8, "Use at least 8 characters")
-    .max(72, "Use 72 characters or fewer")
-    .regex(/[A-Za-z]/, "Include at least one letter")
-    .regex(/\d/, "Include at least one number"),
+  password: passwordSchema,
 });
+
+export const newPasswordSchema = z
+  .object({ password: passwordSchema, confirm: z.string() })
+  .refine((v) => v.password === v.confirm, {
+    path: ["confirm"],
+    message: "The passwords don't match",
+  });
 
 export type SignInInput = z.infer<typeof signInSchema>;
 export type SignUpInput = z.infer<typeof signUpSchema>;

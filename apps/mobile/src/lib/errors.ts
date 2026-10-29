@@ -9,6 +9,19 @@ const KNOWN_MESSAGES: [RegExp, string][] = [
   [/password should be at least/i, "Your password needs at least 8 characters."],
   [/rate limit|too many requests/i, "Too many attempts. Please wait a minute and try again."],
   [
+    /error sending (confirmation|recovery|magic link|invite) email/i,
+    "We couldn't send the email just now. Please try again in a few minutes.",
+  ],
+  [
+    /provider is not enabled|unsupported provider/i,
+    "This sign-in option isn't available yet. Use your email instead.",
+  ],
+  [/should be different from the old password/i, "Choose a password you haven't used before."],
+  [
+    /code verifier|auth code|flow state|otp_expired|link is invalid or has expired/i,
+    "This link has expired or was opened on another device. Sign in, or request a new link.",
+  ],
+  [
     /network|fetch failed|failed to fetch/i,
     "You seem to be offline. Check your connection and try again.",
   ],
