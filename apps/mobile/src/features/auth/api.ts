@@ -3,6 +3,7 @@ import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
 import { clearLocalData } from "@/features/account/localData";
+import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { getSupabase } from "@/lib/supabase";
 import type { SignInInput, SignUpInput } from "./validation";
@@ -67,6 +68,25 @@ export async function updatePassword(password: string): Promise<void> {
   const { error } = await getSupabase().auth.updateUser({ password });
   if (error) throw error;
   logger.info("Password changed");
+}
+
+export interface AuthProviders {
+  google: boolean;
+  apple: boolean;
+}
+
+/**
+ * Which social sign-ins the Supabase project has switched on, from its public
+ * settings endpoint, so the app never offers a button that can only fail.
+ */
+export async function fetchAuthProviders(): Promise<AuthProviders> {
+  if (!env) throw new Error("Supabase is not configured");
+  const response = await fetch(`${env.EXPO_PUBLIC_SUPABASE_URL}/auth/v1/settings`, {
+    headers: { apikey: env.EXPO_PUBLIC_SUPABASE_ANON_KEY },
+  });
+  if (!response.ok) throw new Error(`Auth settings request failed (${response.status})`);
+  const body = (await response.json()) as { external?: Record<string, unknown> };
+  return { google: body.external?.google === true, apple: body.external?.apple === true };
 }
 
 /** Native "Sign in with Apple" (iOS only). Apple requires it whenever Google is offered. */
