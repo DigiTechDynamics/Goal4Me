@@ -15,6 +15,7 @@ export * from "./nutrition";
 export * from "./premium";
 export * from "./programs";
 export * from "./progress";
+export * from "./running";
 export * from "./projection";
 export * from "./streak";
 export * from "./types";

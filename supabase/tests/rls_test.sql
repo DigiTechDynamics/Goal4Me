@@ -233,6 +233,23 @@ do $$ begin
   assert (select count(*) from public.lessons) = 3, 'locked again after expiry';
 end $$;
 
+-- Running: starting a new plan retires the old one; retries are no-ops.
+select public.start_running_plan('aaaaaaaa-0000-0000-0000-0000000000a1', 'novice', '5k', 3::smallint,
+                                 9::smallint, current_date) as _ \gset
+select public.start_running_plan('aaaaaaaa-0000-0000-0000-0000000000a2', 'beginner', '10k', 3::smallint,
+                                 10::smallint, current_date) as _ \gset
+select public.start_running_plan('aaaaaaaa-0000-0000-0000-0000000000a2', 'beginner', '10k', 3::smallint,
+                                 10::smallint, current_date) as _ \gset
+insert into public.run_logs (user_id, plan_id, week, session_index, completed_on, rating)
+values ('11111111-1111-1111-1111-111111111111', 'aaaaaaaa-0000-0000-0000-0000000000a2', 1, 0,
+        current_date, 'just_right');
+do $$ begin
+  assert (select count(*) from public.running_plans) = 2, 'old plan kept as history';
+  assert (select id from public.running_plans where is_active) = 'aaaaaaaa-0000-0000-0000-0000000000a2',
+    'only the newest plan is active';
+  assert jsonb_array_length(public.export_my_data() -> 'run_logs') = 1, 'export has run logs';
+end $$;
+
 -- ---- Act as Bob -------------------------------------------------------------
 select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', true) as _ \gset
 select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222"}', true) as _ \gset
@@ -248,6 +265,14 @@ do $$ begin
     values (gen_random_uuid(), '22222222-2222-2222-2222-222222222222', '2026-10-01', 500, 'USD',
             'aaaaaaaa-0000-0000-0000-0000000000c1');
     raise exception 'FAIL: used another user''s category';
+  exception when foreign_key_violation then null; end;
+
+  assert (select count(*) from public.running_plans) = 0, 'Bob must not see Alice''s running plans';
+  begin
+    insert into public.run_logs (user_id, plan_id, week, session_index, completed_on, rating)
+    values ('22222222-2222-2222-2222-222222222222', 'aaaaaaaa-0000-0000-0000-0000000000a2', 1, 1,
+            current_date, 'too_easy');
+    raise exception 'FAIL: logged a run on another user''s plan';
   exception when foreign_key_violation then null; end;
 
   update public.profiles set display_name = 'hijacked'
