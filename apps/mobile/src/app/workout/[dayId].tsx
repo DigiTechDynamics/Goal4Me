@@ -3,6 +3,7 @@ import {
   buildWorkout,
   estimateKcal,
   nextIntensityFactor,
+  type ExerciseInfo,
   type WorkoutRating,
 } from "@goal4me/core";
 import * as Crypto from "expo-crypto";
@@ -21,7 +22,12 @@ import { track } from "@/lib/analytics";
 import { useHomeSummary } from "@/features/home/api";
 import { useExerciseLibrary, useProgramDay, useProgramPlan } from "@/features/workouts/api";
 import { CountdownRing } from "@/features/workouts/components/CountdownRing";
+import { ExerciseGuideSheet } from "@/features/workouts/components/ExerciseGuideSheet";
+import { ExerciseMotion } from "@/features/workouts/components/ExerciseMotion";
 import { ExerciseVisual } from "@/features/workouts/components/ExerciseVisual";
+import { MuscleChips } from "@/features/workouts/components/MuscleChips";
+import { WorkoutOverviewView } from "@/features/workouts/components/WorkoutOverviewView";
+import { MOTIONS } from "@/features/workouts/motion/motions";
 import { RatingView } from "@/features/workouts/components/RatingView";
 import {
   exercisesReached,
@@ -31,7 +37,7 @@ import {
 import { usePlayer } from "@/features/workouts/player/usePlayer";
 import { flushWorkoutQueue, useSyncQueue } from "@/features/workouts/syncQueue";
 import { toUserMessage } from "@/lib/errors";
-import { colors, spacing } from "@/theme/tokens";
+import { colors, radii, spacing } from "@/theme/tokens";
 
 /** Fallback body weight for the calorie estimate if no weigh-in is cached. */
 const DEFAULT_WEIGHT_KG = 70;
@@ -44,8 +50,11 @@ export default function WorkoutScreen() {
   const plan = useProgramPlan(userId);
   const day = useProgramDay(dayId);
   const locks = useDayLocks(userId, plan.data);
+  const summary = useHomeSummary(userId);
   const planDay = plan.data?.days.find((d) => d.id === dayId);
   const locked = !!planDay && locks.isLocked(planDay);
+  // The overview shows first; the player (and its countdown) mounts on Start.
+  const [started, setStarted] = useState(false);
 
   const workout = useMemo(() => {
     if (!library.data || !plan.data || !day.data) return null;
@@ -97,9 +106,23 @@ export default function WorkoutScreen() {
     );
   }
 
+  if (!started) {
+    return (
+      <WorkoutOverviewView
+        title={day.data.title}
+        dayNumber={planDay?.dayNumber ?? 0}
+        workout={workout}
+        weightKg={summary.data?.weights[0]?.weightKg ?? DEFAULT_WEIGHT_KG}
+        library={library.data?.byId ?? {}}
+        onStart={() => setStarted(true)}
+      />
+    );
+  }
+
   return (
     <Player
       userId={userId}
+      library={library.data?.byId ?? {}}
       dayId={dayId}
       dayNumber={planDay?.dayNumber ?? 0}
       title={day.data.title}
@@ -112,6 +135,7 @@ export default function WorkoutScreen() {
 
 function Player({
   userId,
+  library,
   dayId,
   dayNumber,
   title,
@@ -120,6 +144,7 @@ function Player({
   recentRatings,
 }: {
   userId: string;
+  library: Readonly<Record<string, ExerciseInfo>>;
   dayId: string;
   dayNumber: number;
   title: string;
@@ -132,6 +157,19 @@ function Player({
   const { state, dispatch } = usePlayer(workout.steps, voice);
   const startedAt = useRef(new Date().toISOString());
   const summary = useHomeSummary(userId);
+  // "How to do it" sheet: opening it pauses a running workout; closing resumes it.
+  const [guide, setGuide] = useState<ExerciseInfo | null>(null);
+  const pausedForGuide = useRef(false);
+  const openGuide = (exercise: ExerciseInfo) => {
+    pausedForGuide.current = state.status === "running";
+    if (pausedForGuide.current) dispatch({ type: "pause" });
+    setGuide(exercise);
+  };
+  const closeGuide = () => {
+    setGuide(null);
+    if (pausedForGuide.current) dispatch({ type: "resume" });
+    pausedForGuide.current = false;
+  };
 
   const step = workout.steps[state.index];
   const nextExercise = workout.steps.slice(state.index + 1).find((s) => s.kind === "exercise");
@@ -260,7 +298,20 @@ function Player({
             label="seconds"
             tone="info"
           />
-          <AppText color="textMuted">Next: {step.next.name}</AppText>
+          <View style={styles.nextCard}>
+            <NextThumb slug={step.next.slug} />
+            <View style={styles.flex}>
+              <AppText variant="caption" color="textMuted">
+                Up next
+              </AppText>
+              <AppText variant="bodyStrong">{step.next.name}</AppText>
+              {step.next.formTips[0] ? (
+                <AppText variant="caption" color="textMuted">
+                  Tip: {step.next.formTips[0]}
+                </AppText>
+              ) : null}
+            </View>
+          </View>
           <Button
             label="+15 seconds"
             variant="ghost"
@@ -286,6 +337,10 @@ function Player({
                 Swapped in to suit you
               </AppText>
             ) : null}
+            {step.exercise.details?.description ? (
+              <AppText color="textMuted">{step.exercise.details.description}</AppText>
+            ) : null}
+            {step.exercise.details ? <MuscleChips muscles={step.exercise.details.muscles} /> : null}
           </View>
           {state.remaining !== null ? (
             <AppText variant="display" color="brand" accessibilityRole="timer">
@@ -301,6 +356,7 @@ function Player({
               • {tip}
             </AppText>
           ))}
+          <Button label="How to do it" variant="ghost" onPress={() => openGuide(step.exercise)} />
           {nextExercise?.kind === "exercise" ? (
             <AppText variant="caption" color="textSubtle">
               Next: {nextExercise.exercise.name}
@@ -309,7 +365,13 @@ function Player({
         </View>
       ) : null}
 
-      {state.status === "paused" ? (
+      <ExerciseGuideSheet
+        exercise={guide}
+        easierName={guide?.easierId ? (library[guide.easierId]?.name ?? null) : null}
+        onClose={closeGuide}
+      />
+
+      {state.status === "paused" && !guide ? (
         <Card style={styles.paused}>
           <AppText variant="heading" align="center">
             Paused
@@ -398,6 +460,12 @@ function Finished(props: {
   );
 }
 
+/** The next exercise, animating, so the rest doubles as a preview. */
+function NextThumb({ slug }: { slug: string }) {
+  const motion = MOTIONS[slug];
+  return <View style={styles.nextThumb}>{motion ? <ExerciseMotion motion={motion} /> : null}</View>;
+}
+
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <Card style={styles.stat}>
@@ -427,6 +495,19 @@ const styles = StyleSheet.create({
   side: { flex: 1, paddingHorizontal: spacing.sm },
   main: { flex: 1.4 },
   paused: { borderColor: colors.warning },
+  flex: { flex: 1, gap: 2 },
+  nextCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    alignSelf: "stretch",
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  nextThumb: { width: 96, height: 72, borderRadius: radii.md, overflow: "hidden" },
   finishedHeader: { gap: spacing.sm, paddingTop: spacing.xl },
   stats: { flexDirection: "row", gap: spacing.md },
   stat: { flex: 1, alignItems: "center" },

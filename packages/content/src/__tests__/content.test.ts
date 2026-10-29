@@ -6,7 +6,15 @@ import {
   type Limitation,
 } from "@goal4me/core";
 import { describe, expect, it } from "vitest";
-import { EXERCISES, expandProgram, FALLBACK_SLUGS, PROGRAM_SEEDS, renderSeedSql } from "../index";
+import {
+  EXERCISE_GUIDES,
+  EXERCISES,
+  expandProgram,
+  FALLBACK_SLUGS,
+  PROGRAM_SEEDS,
+  renderExerciseGuidesSql,
+  renderSeedSql,
+} from "../index";
 
 const bySlug = new Map(EXERCISES.map((e) => [e.slug, e]));
 
@@ -136,5 +144,27 @@ describe("seed SQL", () => {
     const sql = renderSeedSql();
     expect(sql).toContain("on conflict (slug) do update");
     expect(sql).toContain("'Child''s pose'");
+  });
+});
+
+describe("exercise guides", () => {
+  it("cover every exercise exactly once", () => {
+    const slugs = EXERCISES.map((e) => e.slug).sort();
+    expect(Object.keys(EXERCISE_GUIDES).sort()).toEqual(slugs);
+  });
+
+  it.each(Object.entries(EXERCISE_GUIDES))("%s is complete and fits the database", (_, guide) => {
+    for (const text of [...guide.steps, ...guide.mistakes, guide.breathing, guide.benefit]) {
+      expect(text.trim()).toBe(text);
+      expect(text.length).toBeGreaterThan(10);
+      expect(text.length).toBeLessThanOrEqual(200);
+      expect(text).toMatch(/[.!?]$/);
+    }
+  });
+
+  it("renders an update per exercise", () => {
+    const sql = renderExerciseGuidesSql();
+    expect(sql.match(/^update public\.exercises set steps/gm)).toHaveLength(EXERCISES.length);
+    expect(sql).toContain("don''t hold your breath");
   });
 });

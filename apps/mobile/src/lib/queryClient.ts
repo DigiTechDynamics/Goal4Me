@@ -25,7 +25,7 @@ export const QUERY_CACHE_KEY = "goal4me.query-cache";
  */
 export const PERSIST_OPTIONS = {
   maxAge: 7 * 24 * 60 * 60 * 1000,
-  buster: "v2",
+  buster: "v3",
   dehydrateOptions: {
     shouldDehydrateQuery: (query: Query) =>
       query.state.status === "success" && query.meta?.persist !== false,
