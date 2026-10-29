@@ -117,6 +117,11 @@ Copy the `anon key` printed by `supabase start` into `.env`.
 Without these, sign-up emails only land in Mailpit (http://localhost:54324)
 and "Continue with Google" fails with "provider is not enabled".
 
+Both are off by default, so a fresh setup keeps working with Mailpit. To
+turn them on, fill in the values below, set `enabled = true` under
+`[auth.email.smtp]` and/or `[auth.external.google]` in
+`supabase/config.toml`, then restart:
+
 ```bash
 cp supabase/.env.example supabase/.env   # fill in the values below
 supabase stop && supabase start          # config is read at start

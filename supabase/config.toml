@@ -33,11 +33,12 @@ enable_confirmations = true
 # Real email delivery through Gmail. Without it, local emails are only
 # caught by Mailpit (http://localhost:54324) and never reach an inbox.
 # Needs an App Password for the Gmail account (Google Account → Security →
-# 2-Step Verification → App passwords), set as SMTP_PASS in supabase/.env.
+# 2-Step Verification → App passwords), set as SMTP_PASS in supabase/.env,
+# then set enabled = true and restart. Left off, emails stay in Mailpit.
 # Gmail allows about 500 emails a day; use a domain sender (e.g. Resend,
 # Brevo) before launch.
 [auth.email.smtp]
-enabled = true
+enabled = false
 host = "smtp.gmail.com"
 port = 587
 user = "env(SMTP_USER)"
@@ -52,9 +53,9 @@ email_sent = 30
 # "Continue with Google". Create an OAuth client (Web application) in
 # Google Cloud Console → APIs & Services → Credentials, add
 # http://127.0.0.1:54321/auth/v1/callback as an authorised redirect URI,
-# and put its ID and secret in supabase/.env.
+# put its ID and secret in supabase/.env, then set enabled = true and restart.
 [auth.external.google]
-enabled = true
+enabled = false
 client_id = "env(GOOGLE_CLIENT_ID)"
 secret = "env(GOOGLE_CLIENT_SECRET)"
 redirect_uri = "http://127.0.0.1:54321/auth/v1/callback"
