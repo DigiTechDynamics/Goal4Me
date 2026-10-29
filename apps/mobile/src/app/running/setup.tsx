@@ -313,7 +313,9 @@ function SetupForm({
           </AppText>
           <AppText color="textMuted">
             First run {formatRunDate(first.date)} ({formatDuration(first.totalSeconds)}).{" "}
-            {last.type === "race" ? `Race day ${formatRunDate(last.date)}.` : ""}
+            {last.type === "race"
+              ? `${settings.raceDate ? "Race day" : "Goal run"} ${formatRunDate(last.date)}.`
+              : ""}
           </AppText>
           {zones ? (
             <>
