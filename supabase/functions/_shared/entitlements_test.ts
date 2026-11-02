@@ -45,17 +45,20 @@ Deno.test("periods are month-end safe", () => {
 });
 
 function memoryStore(initial: EntitlementState | null) {
-  let current = initial;
+  const rows = new Map<string, EntitlementState | null>([["fit_premium", initial]]);
   const store: BillingStore = {
     paymentByReference: () => Promise.resolve(null),
     updateStatus: () => Promise.resolve(false),
-    entitlement: () => Promise.resolve(current),
-    saveEntitlement: (_u, next) => {
-      current = next;
+    entitlement: (_u, name) => Promise.resolve(rows.get(name) ?? null),
+    saveEntitlement: (_u, name, next) => {
+      rows.set(name, next);
       return Promise.resolve();
     },
   };
-  return { store, get: () => current };
+  return {
+    store,
+    get: (name = "fit_premium") => rows.get(name) ?? null,
+  };
 }
 
 const USER = "11111111-1111-4111-8111-111111111111";
@@ -67,6 +70,7 @@ Deno.test("RevenueCat purchases grant and expirations revoke their own store onl
       type: "INITIAL_PURCHASE",
       app_user_id: USER,
       product_id: "goal4me_yearly",
+      entitlement_ids: ["fit_premium"],
       store: "APP_STORE",
       expiration_at_ms: Date.parse("2027-10-28T00:00:00Z"),
     }, NOW),
@@ -77,6 +81,7 @@ Deno.test("RevenueCat purchases grant and expirations revoke their own store onl
     await applyRevenueCatEvent(m.store, {
       type: "EXPIRATION",
       app_user_id: USER,
+      entitlement_ids: ["fit_premium"],
       store: "PLAY_STORE",
     }, NOW),
     "ignored",
@@ -86,6 +91,7 @@ Deno.test("RevenueCat purchases grant and expirations revoke their own store onl
     await applyRevenueCatEvent(m.store, {
       type: "EXPIRATION",
       app_user_id: USER,
+      entitlement_ids: ["fit_premium"],
       store: "APP_STORE",
     }, NOW),
     "expired",
@@ -100,9 +106,44 @@ Deno.test("RevenueCat events for anonymous ids or unknown stores are ignored", a
       { type: "INITIAL_PURCHASE", app_user_id: "$RCAnonymousID:abc", store: "APP_STORE" },
       { type: "INITIAL_PURCHASE", app_user_id: USER, store: "STRIPE" },
       { type: "BILLING_ISSUE", app_user_id: USER, store: "APP_STORE" },
+      // No entitlement we sell (or none at all): nothing to grant.
+      { type: "INITIAL_PURCHASE", app_user_id: USER, store: "APP_STORE" },
+      {
+        type: "INITIAL_PURCHASE",
+        app_user_id: USER,
+        store: "APP_STORE",
+        entitlement_ids: ["something_else"],
+      },
     ]
   ) {
     assert.equal(await applyRevenueCatEvent(m.store, event, NOW), "ignored");
   }
   assert.equal(m.get(), null);
+});
+
+Deno.test("a store purchase unlocks only the app it was bought in", async () => {
+  const m = memoryStore(null);
+  await applyRevenueCatEvent(m.store, {
+    type: "INITIAL_PURCHASE",
+    app_user_id: USER,
+    product_id: "money_yearly",
+    entitlement_ids: ["money_premium"],
+    store: "PLAY_STORE",
+    expiration_at_ms: Date.parse("2027-10-28T00:00:00Z"),
+  }, NOW);
+  assert.equal(m.get("money_premium")?.isActive, true);
+  assert.equal(m.get("fit_premium"), null);
+});
+
+Deno.test("renewals of pre-split 'premium' subscriptions extend Fit Premium", async () => {
+  const m = memoryStore(null);
+  await applyRevenueCatEvent(m.store, {
+    type: "RENEWAL",
+    app_user_id: USER,
+    entitlement_ids: ["premium"],
+    store: "APP_STORE",
+    expiration_at_ms: Date.parse("2027-10-28T00:00:00Z"),
+  }, NOW);
+  assert.equal(m.get("fit_premium")?.isActive, true);
+  assert.equal(m.get("money_premium"), null);
 });

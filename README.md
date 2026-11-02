@@ -1,9 +1,16 @@
 # Goal4Me
 
 Personalised home calisthenics, health tracking and money coaching for iOS,
-Android and web. Users take a short quiz (age, sex, height, weight, goals),
-get their BMI, calorie and protein targets and a 28-day bodyweight programme,
-then track workouts, body progress, budgets and savings in one app.
+Android and web, shipped as **two apps that share one account**:
+
+| App               | Folder         | What it does                                                                                                                                          |
+| ----------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Goal4Me Fit**   | `apps/fitness` | A short quiz (age, sex, height, weight, goals) gives BMI, calorie and protein targets and a 28-day bodyweight programme; workouts, runs and progress. |
+| **Goal4Me Money** | `apps/finance` | A 1-minute setup (country, currency, money goal), then budgets, savings goals and 3-minute money lessons.                                             |
+
+Both apps use the same Supabase project, so one Goal4Me sign-in works in both,
+while each app sells **its own Premium plan** (Goal4Me Fit Premium unlocks
+workouts and runs; Goal4Me Money Premium unlocks lessons).
 
 > Product spec and architecture live in the project documents
 > ("Goal4Me: Product Spec" and "Goal4Me: Architecture & Design").
@@ -20,6 +27,7 @@ then track workouts, body progress, budgets and savings in one app.
 | 6a    | Premium: PayNow (web) + RevenueCat (stores), paywall, free-tier locks                    | Done  |
 | 6b    | Analytics, crash reporting, store builds, Apple Health / Health Connect sync             | Done  |
 | 7     | Running: novice-to-pro ladder, guides, customisable plans, guided run player             | Done  |
+| 8     | Split into Goal4Me Fit and Goal4Me Money, with a shared app kit                          | Done  |
 
 Apple Health, Health Connect and store purchases use native modules, so test
 them in an EAS development build (not Expo Go). Everything else also runs on
@@ -42,17 +50,24 @@ the web.
 ```
 goal4me/
 ├── apps/
-│   └── mobile/             # Expo app (iOS, Android, web)
+│   ├── fitness/            # Goal4Me Fit (Expo: iOS, Android, web on :8081)
+│   │   └── src/
+│   │       ├── app/        # Expo Router screens only (no business logic)
+│   │       ├── appConfig.ts# Registers the app with the kit (name, copy, sign-out hook)
+│   │       └── features/   # onboarding, home, workouts, running, progress, health
+│   └── finance/            # Goal4Me Money (Expo: iOS, Android, web on :8082)
 │       └── src/
-│           ├── app/        # Expo Router screens only (no business logic)
-│           ├── components/ # Design-system components (ui/) and shared views
-│           ├── features/   # auth, onboarding, home: api, hooks, components, tests
-│           ├── lib/        # Supabase client, env validation, logger, errors, formatting
-│           └── theme/      # Design tokens (colours, spacing, typography)
+│           ├── app/        # (tabs): Budget, Learn, Profile · setup · money/* modals
+│           ├── appConfig.ts
+│           └── features/   # money (budgets, goals, lessons), setup, profile
 ├── packages/
+│   ├── app-kit/            # React Native code both apps share: auth, account
+│   │   └── src/            # (export, delete), billing (paywall, PayNow, RevenueCat),
+│   │                       # UI kit, theme, Supabase client, logging, the root shell
+│   │                       # and shared screens (sign-in, paywall…)
 │   ├── core/               # Pure business logic: BMI, BMR/TDEE, calorie targets,
 │   │                       # projections, workout progression, money maths + tests
-│   ├── schemas/            # Zod schemas shared by the app and Edge Functions + tests
+│   ├── schemas/            # Zod schemas shared by the apps and Edge Functions + tests
 │   └── content/            # Exercise library + programme templates → generated seed SQL
 ├── supabase/
 │   ├── config.toml         # Local Supabase settings
@@ -71,6 +86,26 @@ Design rules:
   guards inside `core` so a bug can never produce a dangerous recommendation.
 - **Every table has row-level security.** Users can only read and write their
   own rows; billing tables are written only by server webhooks.
+- **Apps never import each other.** Anything both need lives in
+  `packages/app-kit`; what differs (name, copy, where new users start, what to
+  wipe on sign-out) comes from each app's `src/appConfig.ts`. Shared screens are
+  one-line route files, e.g. `export { SignInScreen as default } from
+"@goal4me/app-kit/screens/SignInScreen"`.
+- The kit's `package.json` `exports` list is generated from `src/` by
+  `pnpm --filter @goal4me/app-kit exports`; `pnpm typecheck` fails if it is
+  out of date.
+
+### How the two apps share the backend
+
+| Concern          | Shared or per app                                                                                                                                                                              |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Account          | Shared. Same Supabase Auth users; signing up in either app works in the other. Deleting the account (from either app) deletes everything, photos included.                                     |
+| Profile          | Shared row. Fit's quiz fills body fields; Money's setup (`complete_money_setup`) fills country, currency and money goal. Neither overwrites a currency the other set.                          |
+| Premium          | Per app: entitlements `fit_premium` and `money_premium`, enforced by RLS. Subscribers from before the split were given both.                                                                   |
+| PayNow (web)     | One integration. The app sends `app: "fitness" \| "money"`; the payment records which plan it buys and PayNow returns the payer to that site (`PAYNOW_RETURN_URL`, `PAYNOW_RETURN_URL_MONEY`). |
+| Deep links       | Per app: `goal4me://` (Fit) and `goal4memoney://` (Money); both are allowed in `supabase/config.toml`.                                                                                         |
+| Store identity   | Per app: `com.goal4me.app` (Fit, unchanged) and `com.goal4me.money` (Money).                                                                                                                   |
+| Analytics/Sentry | Shared projects; every event and error carries an `app` property / tag.                                                                                                                        |
 
 ## Getting started
 
@@ -90,12 +125,20 @@ pnpm check        # lint + format check + typecheck + tests
 
 Individual tasks: `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm format`.
 
-### Run the app
+### Run the apps
+
+Each app has its own `.env` (same values: both talk to the same Supabase).
 
 ```bash
-cp .env.example apps/mobile/.env   # fill in EXPO_PUBLIC_SUPABASE_URL and _ANON_KEY
-pnpm --filter @goal4me/mobile start   # then press i (iOS), a (Android) or w (web)
+cp .env.example apps/fitness/.env   # fill in EXPO_PUBLIC_SUPABASE_URL and _ANON_KEY
+cp .env.example apps/finance/.env   # same values
+
+pnpm --filter @goal4me/fitness start   # Goal4Me Fit on http://localhost:8081
+pnpm --filter @goal4me/finance start   # Goal4Me Money on http://localhost:8082
+# then press i (iOS), a (Android) or w (web) in each terminal
 ```
+
+Run them in two terminals to use both at once; they use different ports.
 
 Sign in with Apple and Google need a development build (`npx expo run:ios` or
 `eas build --profile development`) and the providers enabled in Supabase Auth.
@@ -110,7 +153,15 @@ supabase start            # starts Postgres, Auth, Storage on Docker
 supabase db reset         # applies supabase/migrations
 ```
 
-Copy the `anon key` printed by `supabase start` into `.env`.
+Copy the `anon key` printed by `supabase start` into each app's `.env`.
+
+**Already have a local database with test accounts?** Don't reset it. Apply
+just the new migrations and keep your data:
+
+```bash
+supabase migration up     # applies migrations added since your last start
+supabase stop && supabase start   # reloads config.toml (e.g. new redirect URLs)
+```
 
 ### Sign-up email and Google sign-in (local)
 
@@ -173,7 +224,7 @@ CI fails if the committed seed is out of date.
 ### Exercise demonstrations
 
 Every exercise has an original animated athlete (vector shapes, no third-party
-footage) in `apps/mobile/src/features/workouts/motion/`, keyed by slug:
+footage) in `apps/fitness/src/features/workouts/motion/`, keyed by slug:
 
 - `skeleton.ts`: adult proportions, the angle convention, a spine that can
   round or arch, ankles and hands, and placing the body on the floor by its
@@ -264,9 +315,13 @@ Workouts → Running takes people from their first run to a marathon.
 
 ## Premium and payments
 
-The free tier is the quiz and results, the first 3 workouts of each programme,
-weight logging and 3 money lessons. **The database enforces this**
-(`20261028070000_premium_gating.sql`): free users can't read the exercises of
+Each app sells its own plan. **Goal4Me Fit Premium** (`fit_premium`) unlocks
+every workout day, run and running guide; free users get the quiz and results,
+weight logging, the first 3 workouts of each programme, the first 3 runs of
+each plan and the Starter guides. **Goal4Me Money Premium** (`money_premium`)
+unlocks every lesson; budgets, savings goals and 3 lessons are free. **The
+database enforces this** (`20261028070000_premium_gating.sql`,
+`20261102010000_premium_per_app.sql`): free users can't read the exercises of
 locked days or the content of premium lessons, whatever the app does. The app
 shows locks and a paywall instead of empty screens.
 
@@ -280,8 +335,8 @@ shows locks and a paywall instead of empty screens.
 - PayNow results are never trusted from the browser: each one is confirmed by
   polling PayNow and checking its SHA-512 hash before premium is granted, and
   a payment can only be applied once.
-- Prices: weekly $6.99, quarterly $29.99, yearly $59.99 (7-day free trial in
-  the stores). `PLAN_PRICES_USD` in `packages/schemas` and
+- Prices (currently the same for both apps): weekly $6.99, quarterly $29.99,
+  yearly $59.99 (7-day free trial in the stores). `PLAN_PRICES_USD` in `packages/schemas` and
   `supabase/functions/_shared/plans.ts` are kept identical by a unit test.
 
 ### Setting up payments
@@ -289,12 +344,15 @@ shows locks and a paywall instead of empty screens.
 1. **PayNow**: create an integration in the PayNow merchant dashboard, then
    `supabase secrets set PAYNOW_INTEGRATION_ID=… PAYNOW_INTEGRATION_KEY=…`
    plus `PAYNOW_RESULT_URL` (the deployed `paynow-result` function URL),
-   `PAYNOW_RETURN_URL` (`https://<your web app>/paynow/return`) and `APP_ORIGIN`.
-2. **RevenueCat**: create products `premium_weekly`, `premium_quarterly` and
-   `premium_yearly` in App Store Connect and Play Console, attach them to an
-   entitlement named `premium` and a "default" offering (Weekly, 3 Month,
-   Annual packages). Put the public SDK keys in `EXPO_PUBLIC_REVENUECAT_IOS_KEY`
-   / `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`, add a webhook to the deployed
+   `PAYNOW_RETURN_URL` / `PAYNOW_RETURN_URL_MONEY` (each web app's
+   `/paynow/return`) and `APP_ORIGIN` (both web origins, comma-separated).
+2. **RevenueCat**: one project with both apps. For each app, create its
+   weekly, quarterly and yearly products in App Store Connect and Play
+   Console, attach them to that app's entitlement (`fit_premium` for Fit,
+   `money_premium` for Money) and a "default" offering (Weekly, 3 Month,
+   Annual packages). Put each app's public SDK keys in its own `.env`
+   (`EXPO_PUBLIC_REVENUECAT_IOS_KEY` / `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`).
+   An existing `premium` entitlement is read as `fit_premium`. Add a webhook to the deployed
    `revenuecat-webhook` function with the Authorization header `Bearer <secret>`, and set that secret with
    `supabase secrets set REVENUECAT_WEBHOOK_SECRET=…`.
 3. Deploy: `supabase functions deploy` (the two webhooks have JWT checks off in
@@ -325,9 +383,12 @@ deno fmt --check && deno lint && deno check */*.ts && deno test -A
 
 ## Store builds (EAS)
 
+Each app is its own EAS project and store listing. Run these once in
+`apps/fitness` and once in `apps/finance`:
+
 ```bash
 npm i -g eas-cli && eas login
-cd apps/mobile
+cd apps/fitness                           # then again in apps/finance
 eas init                                  # links the project, writes the project id
 eas env:create --name SENTRY_AUTH_TOKEN --visibility secret   # plus every EXPO_PUBLIC_* value
 eas build --profile development --platform ios     # dev client for testing native modules
@@ -335,11 +396,13 @@ eas build --profile production --platform all
 eas submit --profile production --platform all
 ```
 
-Profiles live in `apps/mobile/eas.json`: `development` (dev client),
+Profiles live in each app's `eas.json`: `development` (dev client),
 `preview` (internal testers, Android APK) and `production` (store builds with
 auto-incremented build numbers). Before the first production build, enable
 HealthKit for the `com.goal4me.app` identifier in the Apple Developer portal
-and complete the Health Connect declaration in Play Console.
+and complete the Health Connect declaration in Play Console (Fit only; Money
+uses no health data). Goal4Me Money currently reuses Fit's icon and splash in
+`apps/finance/assets`; replace them with its own artwork before submitting.
 
 ## Key formulas (`packages/core`)
 
@@ -363,5 +426,5 @@ bundled into the app; everything else is a server secret set with
 
 ## Disclaimer
 
-Goal4Me provides general fitness and financial education. It is not medical or
-financial advice.
+Goal4Me Fit provides general fitness education and Goal4Me Money general
+financial education. Neither is medical or financial advice.

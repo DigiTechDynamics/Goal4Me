@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "Goal4Me Money",
+    "slug": "goal4me-money",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "goal4memoney",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0B0D12",
+    "ios": {
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.goal4me.money",
+      "supportsTablet": false,
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.goal4me.money",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0D12",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png",
+      "name": "Goal4Me Money",
+      "themeColor": "#0B0D12"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-apple-authentication",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0B0D12",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      "expo-sharing",
+      [
+        "@sentry/react-native",
+        {
+          "organization": "goal4me",
+          "project": "goal4me-app",
+          "url": "https://sentry.io/"
+        }
+      ],
+      "expo-localization"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
+  }
+}

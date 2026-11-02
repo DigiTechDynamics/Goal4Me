@@ -1,7 +1,8 @@
 /**
- * Pure rules for the single "premium" entitlement row per user, shared by
- * the PayNow and RevenueCat functions. One row covers every store, so the
- * rules make sure one store can never cut short time bought in another.
+ * Pure rules for one entitlement row (one per user per app: fit_premium,
+ * money_premium), shared by the PayNow and RevenueCat functions. One row
+ * covers every store, so the rules make sure one store can never cut short
+ * time bought in another.
  */
 export type Store = "app_store" | "play_store" | "paynow" | "promotional";
 

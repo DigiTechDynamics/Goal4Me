@@ -62,8 +62,8 @@ do $$ begin
   exception when insufficient_privilege then null; end;
 
   begin
-    insert into public.entitlements (user_id, product_id, store, is_active)
-    values ('11111111-1111-1111-1111-111111111111', 'premium_yearly', 'promotional', true);
+    insert into public.entitlements (user_id, entitlement, product_id, store, is_active)
+    values ('11111111-1111-1111-1111-111111111111', 'fit_premium', 'premium_yearly', 'promotional', true);
     raise exception 'FAIL: user granted themselves premium';
   exception when insufficient_privilege then null; end;
 
@@ -205,7 +205,8 @@ end $$;
 do $$ declare limit_day smallint; begin
   select public.free_day_limit(p.id) into limit_day from public.programs p where p.slug = 'fat-burn-home';
   assert limit_day = 5, format('3rd workout day of ARBRARB is day 5, got %s', limit_day);
-  assert not public.is_premium_user(), 'Alice starts on the free tier';
+  assert not public.is_fit_premium(), 'Alice starts on the free tier';
+  assert not public.is_money_premium(), 'Alice starts on the free tier (Money)';
   assert (select count(distinct d.day_number) from public.program_items i
             join public.program_days d on d.id = i.program_day_id
             join public.programs p on p.id = d.program_id
@@ -213,23 +214,45 @@ do $$ declare limit_day smallint; begin
 end $$;
 
 reset role;
-insert into public.entitlements (user_id, product_id, store, is_active, expires_at)
-values ('11111111-1111-1111-1111-111111111111', 'premium_yearly', 'paynow', true, now() + interval '1 year');
+-- Each app sells its own plan: Fit Premium unlocks workouts, not lessons.
+insert into public.entitlements (user_id, entitlement, product_id, store, is_active, expires_at)
+values ('11111111-1111-1111-1111-111111111111', 'fit_premium', 'premium_yearly', 'paynow', true,
+        now() + interval '1 year');
 set local role authenticated;
 do $$ begin
-  assert public.is_premium_user(), 'premium after the entitlement is granted';
-  assert (select count(*) from public.lessons) = 30, 'premium users open every lesson';
+  assert public.is_fit_premium(), 'Fit Premium after the entitlement is granted';
+  assert not public.is_money_premium(), 'Fit Premium does not include Money';
+  assert (select count(*) from public.lessons) = 3, 'lessons stay locked with Fit Premium only';
   assert (select count(distinct d.day_number) from public.program_items i
             join public.program_days d on d.id = i.program_day_id
             join public.programs p on p.id = d.program_id
            where p.slug = 'fat-burn-home') = 16, 'every workout day unlocked (16 of 28 are workouts)';
 end $$;
 reset role;
+insert into public.entitlements (user_id, entitlement, product_id, store, is_active, expires_at)
+values ('11111111-1111-1111-1111-111111111111', 'money_premium', 'premium_yearly', 'paynow', true,
+        now() + interval '1 year');
+set local role authenticated;
+do $$ begin
+  assert public.is_money_premium(), 'Money Premium after the entitlement is granted';
+  assert (select count(*) from public.lessons) = 30, 'Money Premium opens every lesson';
+end $$;
+reset role;
+do $$ begin
+  begin
+    insert into public.entitlements (user_id, entitlement, product_id, store, is_active)
+    values ('22222222-2222-2222-2222-222222222222', 'premium', 'premium_yearly', 'promotional', true);
+    raise exception 'FAIL: the retired combined entitlement was accepted';
+  exception when check_violation then null; end;
+end $$;
+set local role authenticated;
+reset role;
 update public.entitlements set expires_at = now() - interval '1 day'
  where user_id = '11111111-1111-1111-1111-111111111111';
 set local role authenticated;
 do $$ begin
-  assert not public.is_premium_user(), 'an expired entitlement is not premium';
+  assert not public.is_fit_premium(), 'an expired entitlement is not premium';
+  assert not public.is_money_premium(), 'an expired Money entitlement is not premium';
   assert (select count(*) from public.lessons) = 3, 'locked again after expiry';
 end $$;
 
@@ -320,6 +343,41 @@ do $$ begin
    where user_id = '11111111-1111-1111-1111-111111111111';
 end $$;
 
+-- Bob starts in Goal4Me Money: a money-only setup, no body quiz needed.
+select public.complete_money_setup('ZA', 'ZAR', 'Africa/Johannesburg', 'pay_off_debt') as _ \gset
+do $$ begin
+  assert (select currency from public.profiles) = 'ZAR', 'money setup sets the currency';
+  assert (select money_goal from public.profiles) = 'pay_off_debt', 'money setup saves the goal';
+  assert (select disclaimer_accepted_at is not null from public.profiles), 'disclaimer recorded';
+  assert (select count(*) from public.goals) = 0, 'money setup creates no fitness goal';
+  begin
+    perform public.complete_money_setup('ZA', 'ZAR', 'Africa/Johannesburg', 'get_rich_quick');
+    raise exception 'FAIL: unknown money goal accepted';
+  exception when check_violation then null; end;
+  begin
+    perform public.complete_money_setup('ZA', 'ZAR', 'Not/AZone', null);
+    raise exception 'FAIL: unknown time zone accepted';
+  exception when invalid_parameter_value then null; end;
+  -- Taking Fit's body quiz later keeps the currency chosen in Money. (Run in
+  -- a subtransaction that is then undone, so Bob's later checks start clean.)
+  begin
+    perform public.complete_onboarding('male', '1990-01-01', 180, 85, 'metric', 'ZW', 'USD',
+      'Africa/Johannesburg', 'build_strength', 85, 'moderate', 'intermediate', '{}', '{}',
+      3::smallint, 20::smallint, null, 'fat-burn-home', false);
+    assert (select currency from public.profiles) = 'ZAR', 'Fit quiz must not overwrite currency';
+    assert (select country from public.profiles) = 'ZA', 'Fit quiz must not overwrite country';
+    assert (select money_goal from public.profiles) = 'pay_off_debt', 'money goal kept';
+    raise exception using errcode = 'P0099';
+  exception when sqlstate 'P0099' then null; end;
+end $$;
+reset role;
+do $$ begin
+  assert (select currency from public.profiles
+           where user_id = '11111111-1111-1111-1111-111111111111') = 'USD',
+    'Bob''s setup left Alice''s profile alone';
+end $$;
+set local role authenticated;
+
 -- Bob's first budget gets the starter categories, limits from his income.
 select public.setup_budget(date_trunc('month', current_date)::date, 200000, 'ZAR') as _ \gset
 do $$ begin
@@ -367,8 +425,9 @@ do $$ begin
 end $$;
 
 -- A payment record must survive account deletion, detached from the user.
-insert into public.paynow_payments (user_id, plan_id, amount_minor, reference, status)
-values ('11111111-1111-1111-1111-111111111111', 'premium_yearly', 3999, 'G4M-TEST-1', 'paid');
+insert into public.paynow_payments (user_id, plan_id, amount_minor, reference, status, entitlement)
+values ('11111111-1111-1111-1111-111111111111', 'premium_yearly', 3999, 'G4M-TEST-1', 'paid',
+        'money_premium');
 delete from auth.users where id = '11111111-1111-1111-1111-111111111111';
 do $$ begin
   assert (select count(*) from public.body_metrics) = 0, 'metrics deleted with the account';

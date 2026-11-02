@@ -7,7 +7,13 @@ const KEY = "integration-key";
 const NOW = new Date("2026-10-28T10:00:00Z");
 
 function fakeStore(payment: Payment, entitlement: EntitlementState | null = null) {
-  const state = { payment: { ...payment }, entitlement, saves: 0 };
+  const state = {
+    payment: { ...payment },
+    entitlement,
+    saves: 0,
+    asked: [] as string[],
+    saved: [] as string[],
+  };
   const store: BillingStore = {
     paymentByReference: (ref) => Promise.resolve(ref === "G4M-1" ? state.payment : null),
     updateStatus: (_id, status: PaymentStatus) => {
@@ -15,8 +21,12 @@ function fakeStore(payment: Payment, entitlement: EntitlementState | null = null
       if (!wasPaid) state.payment.status = status;
       return Promise.resolve(!wasPaid && PAID_STATUSES.includes(status));
     },
-    entitlement: () => Promise.resolve(state.entitlement),
-    saveEntitlement: (_u, next) => {
+    entitlement: (_u, name) => {
+      state.asked.push(name);
+      return Promise.resolve(state.entitlement);
+    },
+    saveEntitlement: (_u, name, next) => {
+      state.saved.push(name);
       state.entitlement = next;
       state.saves += 1;
       return Promise.resolve();
@@ -29,6 +39,7 @@ const payment: Payment = {
   id: "p1",
   userId: "u1",
   planId: "premium_quarterly",
+  entitlement: "money_premium",
   amountMinor: 2999,
   pollUrl: "https://paynow.test/poll",
   status: "sent",
@@ -87,4 +98,19 @@ Deno.test("unknown references are rejected", async () => {
     confirmPayment(store, "G4M-404", reply("Paid"), KEY, NOW),
     /unknown_reference/,
   );
+});
+
+Deno.test("a payment grants the plan of the app it was made in", async () => {
+  const { store, state } = fakeStore(payment);
+  await confirmPayment(store, "G4M-1", reply("Paid"), KEY, NOW);
+  assert.deepEqual(state.asked, ["money_premium"]);
+  assert.deepEqual(state.saved, ["money_premium"]);
+});
+
+Deno.test("a payment for an unknown plan is recorded but grants nothing", async () => {
+  const { store, state } = fakeStore({ ...payment, entitlement: "premium" });
+  const result = await confirmPayment(store, "G4M-1", reply("Paid"), KEY, NOW);
+  assert.equal(result.granted, false);
+  assert.equal(state.payment.status, "paid");
+  assert.equal(state.entitlement, null);
 });

@@ -9,6 +9,7 @@ import {
   toPaymentStatus,
   verifyMessage,
 } from "./paynow.ts";
+import { type Entitlement, isEntitlement } from "./apps.ts";
 import { addPeriod, isPlanId, PLANS } from "./plans.ts";
 
 /** Storage operations the billing flow needs; the Supabase version is below, tests use a fake. */
@@ -16,14 +17,20 @@ export interface BillingStore {
   paymentByReference(reference: string): Promise<Payment | null>;
   /** Moves a payment to `status`; returns true only for the call that first marks it paid. */
   updateStatus(paymentId: string, status: PaymentStatus): Promise<boolean>;
-  entitlement(userId: string): Promise<EntitlementState | null>;
-  saveEntitlement(userId: string, state: EntitlementState): Promise<void>;
+  entitlement(userId: string, entitlement: Entitlement): Promise<EntitlementState | null>;
+  saveEntitlement(
+    userId: string,
+    entitlement: Entitlement,
+    state: EntitlementState,
+  ): Promise<void>;
 }
 
 export interface Payment {
   id: string;
   userId: string | null;
   planId: string;
+  /** Which app's Premium this payment buys. */
+  entitlement: string;
   amountMinor: number;
   pollUrl: string | null;
   status: PaymentStatus;
@@ -67,11 +74,14 @@ export async function confirmPayment(
   }
 
   const firstTimePaid = await store.updateStatus(payment.id, status);
-  if (!paid || !firstTimePaid || !payment.userId || !isPlanId(payment.planId)) {
+  if (
+    !paid || !firstTimePaid || !payment.userId || !isPlanId(payment.planId) ||
+    !isEntitlement(payment.entitlement)
+  ) {
     return { status, granted: false };
   }
 
-  const existing = await store.entitlement(payment.userId);
+  const existing = await store.entitlement(payment.userId, payment.entitlement);
   const start = extensionStart(existing, now);
   const next = grant(
     existing,
@@ -83,7 +93,7 @@ export async function confirmPayment(
     },
     now,
   );
-  await store.saveEntitlement(payment.userId, next);
+  await store.saveEntitlement(payment.userId, payment.entitlement, next);
   return { status, granted: true };
 }
 
@@ -92,7 +102,7 @@ export function supabaseBillingStore(db: SupabaseClient): BillingStore {
     async paymentByReference(reference) {
       const { data, error } = await db
         .from("paynow_payments")
-        .select("id, user_id, plan_id, amount_minor, poll_url, status")
+        .select("id, user_id, plan_id, entitlement, amount_minor, poll_url, status")
         .eq("reference", reference)
         .maybeSingle();
       if (error) throw error;
@@ -101,6 +111,7 @@ export function supabaseBillingStore(db: SupabaseClient): BillingStore {
           id: data.id,
           userId: data.user_id,
           planId: data.plan_id,
+          entitlement: data.entitlement,
           amountMinor: Number(data.amount_minor),
           pollUrl: data.poll_url,
           status: data.status,
@@ -120,12 +131,12 @@ export function supabaseBillingStore(db: SupabaseClient): BillingStore {
       if (error) throw error;
       return paid && (data?.length ?? 0) > 0;
     },
-    async entitlement(userId) {
+    async entitlement(userId, entitlement) {
       const { data, error } = await db
         .from("entitlements")
         .select("product_id, store, is_active, expires_at")
         .eq("user_id", userId)
-        .eq("entitlement", "premium")
+        .eq("entitlement", entitlement)
         .maybeSingle();
       if (error) throw error;
       return data
@@ -137,10 +148,10 @@ export function supabaseBillingStore(db: SupabaseClient): BillingStore {
         }
         : null;
     },
-    async saveEntitlement(userId, state) {
+    async saveEntitlement(userId, entitlement, state) {
       const { error } = await db.from("entitlements").upsert({
         user_id: userId,
-        entitlement: "premium",
+        entitlement,
         product_id: state.productId,
         store: state.store,
         is_active: state.isActive,

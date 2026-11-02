@@ -7,6 +7,7 @@ export type PlanId = "premium_weekly" | "premium_quarterly" | "premium_yearly";
 
 export interface Plan {
   id: PlanId;
+  /** Length shown to the payer, e.g. "3 months" (the app's plan name is added at checkout). */
   label: string;
   /** Price in US cents. */
   amountMinor: number;
@@ -17,19 +18,19 @@ export interface Plan {
 export const PLANS: Record<PlanId, Plan> = {
   premium_weekly: {
     id: "premium_weekly",
-    label: "Goal4Me Premium (1 week)",
+    label: "1 week",
     amountMinor: 699,
     period: { days: 7 },
   },
   premium_quarterly: {
     id: "premium_quarterly",
-    label: "Goal4Me Premium (3 months)",
+    label: "3 months",
     amountMinor: 2999,
     period: { months: 3 },
   },
   premium_yearly: {
     id: "premium_yearly",
-    label: "Goal4Me Premium (1 year)",
+    label: "1 year",
     amountMinor: 5999,
     period: { months: 12 },
   },

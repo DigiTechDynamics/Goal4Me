@@ -1,10 +1,12 @@
 /**
- * POST /functions/v1/paynow-checkout  { planId, method: "web" | "ecocash" | "onemoney", phone? }
+ * POST /functions/v1/paynow-checkout
+ *   { planId, method: "web" | "ecocash" | "onemoney", phone?, app?: "fitness" | "money" }
  * Starts a PayNow payment for the signed-in user. "web" returns a URL to
  * PayNow's hosted page (cards, EcoCash, OneMoney…); the mobile-money methods
  * send a USSD prompt to the phone and return instructions to show.
  */
 import { z } from "zod";
+import { CLIENT_APPS, ENTITLEMENT_FOR_APP, paynowReturnUrl, PLAN_BRAND } from "../_shared/apps.ts";
 import { HttpError, json, requireEnv, serve } from "../_shared/http.ts";
 import {
   field,
@@ -20,12 +22,15 @@ import { adminClient, requireUser } from "../_shared/supabase.ts";
 
 // Mirrors paynowCheckoutSchema in packages/schemas/src/billing.ts.
 const planId = z.enum(["premium_weekly", "premium_quarterly", "premium_yearly"]);
+// Older app builds don't send `app`; they are all Goal4Me Fit (the original app).
+const app = z.enum(CLIENT_APPS).default("fitness");
 const bodySchema = z.discriminatedUnion("method", [
-  z.object({ method: z.literal("web"), planId }),
+  z.object({ method: z.literal("web"), planId, app }),
   z.object({
     method: z.enum(["ecocash", "onemoney"]),
     planId,
     phone: z.string().regex(/^07\d{8}$/),
+    app,
   }),
 ]);
 
@@ -38,6 +43,8 @@ serve("paynow-checkout", async (req) => {
   }
   const input = parsed.data;
   const plan = PLANS[input.planId];
+  // Each app sells its own Premium.
+  const entitlement = ENTITLEMENT_FOR_APP[input.app];
 
   const integrationId = requireEnv("PAYNOW_INTEGRATION_ID");
   const integrationKey = requireEnv("PAYNOW_INTEGRATION_KEY");
@@ -50,6 +57,7 @@ serve("paynow-checkout", async (req) => {
     .insert({
       user_id: user.id,
       plan_id: plan.id,
+      entitlement,
       amount_minor: plan.amountMinor,
       currency: "USD",
       reference,
@@ -58,12 +66,12 @@ serve("paynow-checkout", async (req) => {
     .single();
   if (error) throw error;
 
-  const returnUrl = `${requireEnv("PAYNOW_RETURN_URL")}?ref=${encodeURIComponent(reference)}`;
+  const returnUrl = paynowReturnUrl(input.app, reference, (name) => Deno.env.get(name));
   const fields: [string, string][] = [
     ["id", integrationId],
     ["reference", reference],
     ["amount", minorToAmount(plan.amountMinor)],
-    ["additionalinfo", plan.label],
+    ["additionalinfo", `${PLAN_BRAND[entitlement]} (${plan.label})`],
     ["returnurl", returnUrl],
     ["resulturl", requireEnv("PAYNOW_RESULT_URL")],
   ];
