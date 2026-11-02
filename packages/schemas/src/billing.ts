@@ -12,6 +12,17 @@ export type PlanId = (typeof PLAN_IDS)[number];
 export const CLIENT_APPS = ["fitness", "money"] as const;
 export type ClientApp = (typeof CLIENT_APPS)[number];
 
+/**
+ * Each app sells its own Premium plan, stored as its own entitlement row
+ * (and named the same in RevenueCat). Buying one never unlocks the other.
+ * Mirrors ENTITLEMENT_FOR_APP in supabase/functions/_shared/apps.ts.
+ */
+export const ENTITLEMENT_FOR_APP = {
+  fitness: "fit_premium",
+  money: "money_premium",
+} as const satisfies Record<ClientApp, string>;
+export type Entitlement = (typeof ENTITLEMENT_FOR_APP)[ClientApp];
+
 /** Body of POST /functions/v1/paynow-checkout (web purchases in Zimbabwe). */
 export const paynowCheckoutSchema = z.discriminatedUnion("method", [
   z.object({

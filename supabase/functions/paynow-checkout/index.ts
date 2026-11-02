@@ -6,7 +6,7 @@
  * send a USSD prompt to the phone and return instructions to show.
  */
 import { z } from "zod";
-import { CLIENT_APPS, paynowReturnUrl } from "../_shared/apps.ts";
+import { CLIENT_APPS, ENTITLEMENT_FOR_APP, paynowReturnUrl, PLAN_BRAND } from "../_shared/apps.ts";
 import { HttpError, json, requireEnv, serve } from "../_shared/http.ts";
 import {
   field,
@@ -43,6 +43,8 @@ serve("paynow-checkout", async (req) => {
   }
   const input = parsed.data;
   const plan = PLANS[input.planId];
+  // Each app sells its own Premium.
+  const entitlement = ENTITLEMENT_FOR_APP[input.app];
 
   const integrationId = requireEnv("PAYNOW_INTEGRATION_ID");
   const integrationKey = requireEnv("PAYNOW_INTEGRATION_KEY");
@@ -55,6 +57,7 @@ serve("paynow-checkout", async (req) => {
     .insert({
       user_id: user.id,
       plan_id: plan.id,
+      entitlement,
       amount_minor: plan.amountMinor,
       currency: "USD",
       reference,
@@ -68,7 +71,7 @@ serve("paynow-checkout", async (req) => {
     ["id", integrationId],
     ["reference", reference],
     ["amount", minorToAmount(plan.amountMinor)],
-    ["additionalinfo", plan.label],
+    ["additionalinfo", `${PLAN_BRAND[entitlement]} (${plan.label})`],
     ["returnurl", returnUrl],
     ["resulturl", requireEnv("PAYNOW_RESULT_URL")],
   ];

@@ -1,7 +1,7 @@
 import type { PaynowCheckoutRequest } from "@goal4me/schemas";
-import type { PlanId } from "@goal4me/schemas";
+import { ENTITLEMENT_FOR_APP, type PlanId } from "@goal4me/schemas";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { currentAppId } from "../app/config";
+import { appConfig, currentAppId } from "../app/config";
 import { UserFacingError } from "../lib/errors";
 import { getSupabase } from "../lib/supabase";
 import { storeBilling } from "./purchases";
@@ -40,7 +40,8 @@ async function fetchPremium(client: QueryClient, userId: string): Promise<Premiu
     .from("entitlements")
     .select("is_active, expires_at, store")
     .eq("user_id", userId)
-    .eq("entitlement", "premium")
+    // Each app sells its own Premium; only this app's plan counts here.
+    .eq("entitlement", ENTITLEMENT_FOR_APP[appConfig().id])
     .maybeSingle();
   if (error) throw error;
   const active =

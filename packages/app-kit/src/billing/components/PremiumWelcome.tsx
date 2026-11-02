@@ -1,6 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { AppText, Button } from "../../components/ui";
 import { formatTimestamp } from "../../lib/format";
+import { appConfig } from "../../app/config";
 import { colors, radii, spacing } from "../../theme/tokens";
 
 /** Celebration shown once premium is active (after paying, or if already premium). */
@@ -24,7 +25,7 @@ export function PremiumWelcome({
         You're Premium
       </AppText>
       <AppText color="textMuted" align="center">
-        Every workout and every money lesson is now unlocked.
+        {appConfig().premium.unlocked}
       </AppText>
       {expiresAt ? (
         <AppText variant="caption" color="textSubtle" align="center">

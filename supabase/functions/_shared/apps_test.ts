@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { paynowReturnUrl } from "./apps.ts";
+import { ENTITLEMENT_FOR_APP, isEntitlement, paynowReturnUrl } from "./apps.ts";
 import { allowOrigin, parseOrigins } from "./http.ts";
 
 const env = (values: Record<string, string>) => (name: string) => values[name];
@@ -36,4 +36,10 @@ Deno.test("CORS allows each listed web app's origin", () => {
   assert.equal(allowOrigin(allowed, null), "https://fit.goal4me.com");
   assert.deepEqual(parseOrigins(undefined), ["*"]);
   assert.equal(allowOrigin(parseOrigins(""), "https://any.example"), "*");
+});
+
+Deno.test("each app sells its own Premium entitlement", () => {
+  assert.equal(ENTITLEMENT_FOR_APP.fitness, "fit_premium");
+  assert.equal(ENTITLEMENT_FOR_APP.money, "money_premium");
+  assert.equal(isEntitlement("premium"), false);
 });

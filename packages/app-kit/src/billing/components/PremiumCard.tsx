@@ -3,7 +3,8 @@ import { AppText, Banner, Button, Card } from "../../components/ui";
 import { isCancellation, toUserMessage } from "../../lib/errors";
 import { formatTimestamp } from "../../lib/format";
 import { usePremium, useRestorePurchases } from "../api";
-import { autoRenews } from "../copy";
+import { appConfig } from "../../app/config";
+import { autoRenews, premiumName } from "../copy";
 import { openPaywall } from "../gating";
 import { storeBilling } from "../purchases";
 
@@ -30,7 +31,7 @@ export function PremiumCard({ userId }: { userId: string }) {
   return (
     <Card>
       <AppText variant="overline" color={status?.isPremium ? "brand" : "textMuted"}>
-        {status?.isPremium ? "Premium" : "Free plan"}
+        {status?.isPremium ? premiumName() : "Free plan"}
       </AppText>
       {premium.isPending ? (
         <AppText color="textMuted">Checking your plan…</AppText>
@@ -39,12 +40,10 @@ export function PremiumCard({ userId }: { userId: string }) {
           {status.expiresAt
             ? `${autoRenews(status.store) ? "Renews" : "Active until"} ${formatTimestamp(status.expiresAt)}.`
             : "Active."}{" "}
-          Every workout and lesson is unlocked.
+          {appConfig().premium.unlocked}
         </AppText>
       ) : (
-        <AppText color="textMuted">
-          3 workouts per programme and 3 money lessons. Premium unlocks everything.
-        </AppText>
+        <AppText color="textMuted">{appConfig().premium.freeTier}</AppText>
       )}
       {premium.isError ? <Banner message={toUserMessage(premium.error)} /> : null}
       {!premium.isPending && !status?.isPremium ? (

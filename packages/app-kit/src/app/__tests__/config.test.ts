@@ -14,7 +14,7 @@ describe("app config", () => {
       startHref: "/sign-up",
       startLabel: "Create a free account",
       signUp: { title: "t", subtitle: "s" },
-      premiumBenefits: ["b"],
+      premium: { benefits: ["b"], freeTier: "f", unlocked: "u" },
       disclaimer: "d",
     });
     expect(currentAppId()).toBe("money");

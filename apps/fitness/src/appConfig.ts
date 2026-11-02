@@ -18,13 +18,17 @@ configureApp({
     subtitle: "Create a free account to track your workouts, runs and weight.",
     pendingNote: "Your plan is saved on this phone and will be added to your account.",
   },
-  premiumBenefits: [
-    "Every workout in your 4-week programme, adapted to you",
-    "Every run in your running plan, from 5K to marathon",
-    "New programmes as they launch",
-    `All 30 money lessons and quizzes in ${APP_NAMES.money}`,
-    "Support Goal4Me's development",
-  ],
+  premium: {
+    benefits: [
+      "Every workout in your 4-week programme, adapted to you",
+      "Every run in your running plan, from 5K to marathon",
+      "Every running guide, from first run to race day",
+      "New programmes as they launch",
+    ],
+    freeTier:
+      "The first 3 workouts of every programme, the first 3 runs of every plan and the Starter running guides. Premium unlocks the rest.",
+    unlocked: "Every workout, run and running guide is unlocked.",
+  },
   disclaimer:
     "Goal4Me Fit provides general fitness education. It is not medical advice. Check with a doctor before starting a new exercise programme.",
   clearLocalData({ userId, deletingAccount }) {

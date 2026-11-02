@@ -9,7 +9,8 @@ Android and web, shipped as **two apps that share one account**:
 | **Goal4Me Money** | `apps/finance` | A 1-minute setup (country, currency, money goal), then budgets, savings goals and 3-minute money lessons.                                             |
 
 Both apps use the same Supabase project, so one Goal4Me sign-in works in both,
-and one Premium subscription unlocks both.
+while each app sells **its own Premium plan** (Goal4Me Fit Premium unlocks
+workouts and runs; Goal4Me Money Premium unlocks lessons).
 
 > Product spec and architecture live in the project documents
 > ("Goal4Me: Product Spec" and "Goal4Me: Architecture & Design").
@@ -96,15 +97,15 @@ Design rules:
 
 ### How the two apps share the backend
 
-| Concern          | Shared or per app                                                                                                                                                     |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Account          | Shared. Same Supabase Auth users; signing up in either app works in the other. Deleting the account (from either app) deletes everything, photos included.            |
-| Profile          | Shared row. Fit's quiz fills body fields; Money's setup (`complete_money_setup`) fills country, currency and money goal. Neither overwrites a currency the other set. |
-| Premium          | Shared `premium` entitlement. RevenueCat identifies users by Supabase id, so add both apps to one RevenueCat project with the same entitlement.                       |
-| PayNow (web)     | Shared. The app sends `app: "fitness" \| "money"` so PayNow returns the payer to the right site (`PAYNOW_RETURN_URL`, `PAYNOW_RETURN_URL_MONEY`).                     |
-| Deep links       | Per app: `goal4me://` (Fit) and `goal4memoney://` (Money); both are allowed in `supabase/config.toml`.                                                                |
-| Store identity   | Per app: `com.goal4me.app` (Fit, unchanged) and `com.goal4me.money` (Money).                                                                                          |
-| Analytics/Sentry | Shared projects; every event and error carries an `app` property / tag.                                                                                               |
+| Concern          | Shared or per app                                                                                                                                                                              |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Account          | Shared. Same Supabase Auth users; signing up in either app works in the other. Deleting the account (from either app) deletes everything, photos included.                                     |
+| Profile          | Shared row. Fit's quiz fills body fields; Money's setup (`complete_money_setup`) fills country, currency and money goal. Neither overwrites a currency the other set.                          |
+| Premium          | Per app: entitlements `fit_premium` and `money_premium`, enforced by RLS. Subscribers from before the split were given both.                                                                   |
+| PayNow (web)     | One integration. The app sends `app: "fitness" \| "money"`; the payment records which plan it buys and PayNow returns the payer to that site (`PAYNOW_RETURN_URL`, `PAYNOW_RETURN_URL_MONEY`). |
+| Deep links       | Per app: `goal4me://` (Fit) and `goal4memoney://` (Money); both are allowed in `supabase/config.toml`.                                                                                         |
+| Store identity   | Per app: `com.goal4me.app` (Fit, unchanged) and `com.goal4me.money` (Money).                                                                                                                   |
+| Analytics/Sentry | Shared projects; every event and error carries an `app` property / tag.                                                                                                                        |
 
 ## Getting started
 
@@ -314,9 +315,13 @@ Workouts → Running takes people from their first run to a marathon.
 
 ## Premium and payments
 
-The free tier is the quiz and results, the first 3 workouts of each programme,
-weight logging and 3 money lessons. **The database enforces this**
-(`20261028070000_premium_gating.sql`): free users can't read the exercises of
+Each app sells its own plan. **Goal4Me Fit Premium** (`fit_premium`) unlocks
+every workout day, run and running guide; free users get the quiz and results,
+weight logging, the first 3 workouts of each programme, the first 3 runs of
+each plan and the Starter guides. **Goal4Me Money Premium** (`money_premium`)
+unlocks every lesson; budgets, savings goals and 3 lessons are free. **The
+database enforces this** (`20261028070000_premium_gating.sql`,
+`20261102010000_premium_per_app.sql`): free users can't read the exercises of
 locked days or the content of premium lessons, whatever the app does. The app
 shows locks and a paywall instead of empty screens.
 
@@ -330,8 +335,8 @@ shows locks and a paywall instead of empty screens.
 - PayNow results are never trusted from the browser: each one is confirmed by
   polling PayNow and checking its SHA-512 hash before premium is granted, and
   a payment can only be applied once.
-- Prices: weekly $6.99, quarterly $29.99, yearly $59.99 (7-day free trial in
-  the stores). `PLAN_PRICES_USD` in `packages/schemas` and
+- Prices (currently the same for both apps): weekly $6.99, quarterly $29.99,
+  yearly $59.99 (7-day free trial in the stores). `PLAN_PRICES_USD` in `packages/schemas` and
   `supabase/functions/_shared/plans.ts` are kept identical by a unit test.
 
 ### Setting up payments
@@ -339,12 +344,15 @@ shows locks and a paywall instead of empty screens.
 1. **PayNow**: create an integration in the PayNow merchant dashboard, then
    `supabase secrets set PAYNOW_INTEGRATION_ID=… PAYNOW_INTEGRATION_KEY=…`
    plus `PAYNOW_RESULT_URL` (the deployed `paynow-result` function URL),
-   `PAYNOW_RETURN_URL` (`https://<your web app>/paynow/return`) and `APP_ORIGIN`.
-2. **RevenueCat**: create products `premium_weekly`, `premium_quarterly` and
-   `premium_yearly` in App Store Connect and Play Console, attach them to an
-   entitlement named `premium` and a "default" offering (Weekly, 3 Month,
-   Annual packages). Put the public SDK keys in `EXPO_PUBLIC_REVENUECAT_IOS_KEY`
-   / `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`, add a webhook to the deployed
+   `PAYNOW_RETURN_URL` / `PAYNOW_RETURN_URL_MONEY` (each web app's
+   `/paynow/return`) and `APP_ORIGIN` (both web origins, comma-separated).
+2. **RevenueCat**: one project with both apps. For each app, create its
+   weekly, quarterly and yearly products in App Store Connect and Play
+   Console, attach them to that app's entitlement (`fit_premium` for Fit,
+   `money_premium` for Money) and a "default" offering (Weekly, 3 Month,
+   Annual packages). Put each app's public SDK keys in its own `.env`
+   (`EXPO_PUBLIC_REVENUECAT_IOS_KEY` / `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`).
+   An existing `premium` entitlement is read as `fit_premium`. Add a webhook to the deployed
    `revenuecat-webhook` function with the Authorization header `Bearer <secret>`, and set that secret with
    `supabase secrets set REVENUECAT_WEBHOOK_SECRET=…`.
 3. Deploy: `supabase functions deploy` (the two webhooks have JWT checks off in

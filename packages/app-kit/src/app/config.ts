@@ -2,9 +2,10 @@
  * Per-app identity for the shared kit.
  *
  * Goal4Me ships as two apps (Goal4Me Fit and Goal4Me Money) on one Supabase
- * project, so one account works in both. Everything they share (auth,
- * account, billing, UI) lives in this package; the few things that differ
- * (name, copy, where new users start, what to wipe on sign-out) come from
+ * project, so one account works in both; each app sells its own Premium.
+ * Everything they share (auth, account, billing, UI) lives in this package;
+ * the things that differ (name, copy, Premium plan, where new users start,
+ * what to wipe on sign-out) come from
  * the AppConfig each app registers once, before its first screen renders.
  *
  * Kit modules read the config lazily (inside functions). The one exception
@@ -53,8 +54,18 @@ export interface AppConfig {
     /** Extra line after "Check your email…", e.g. that the quiz is kept. */
     pendingNote?: string;
   };
-  /** Ticked list on the paywall: what Premium unlocks, this app first. */
-  premiumBenefits: readonly string[];
+  /**
+   * This app's own Premium plan. Each app sells its own: buying one never
+   * unlocks the other (see ENTITLEMENT_FOR_APP in @goal4me/schemas).
+   */
+  premium: {
+    /** Ticked list on the paywall. */
+    benefits: readonly string[];
+    /** Profile, free tier: what is free and what Premium adds. */
+    freeTier: string;
+    /** Shown once Premium is active, e.g. "Every workout and run is unlocked." */
+    unlocked: string;
+  };
   /** Legal notice at the bottom of Profile. */
   disclaimer: string;
   /** Wipes this app's own on-device stores (the shared caches are handled by the kit). */

@@ -5,7 +5,8 @@ import { AppText, Banner, Button, Screen } from "../../components/ui";
 import { isCancellation, toUserMessage } from "../../lib/errors";
 import { colors, spacing } from "../../theme/tokens";
 import { useRestorePurchases, useStorePlans, useStorePurchase, type StoreResult } from "../api";
-import { PLANS_IN_ORDER, type PaywallReason } from "../copy";
+import { appConfig } from "../../app/config";
+import { PLANS_IN_ORDER, premiumName, type PaywallReason } from "../copy";
 import { storeBilling } from "../purchases";
 import { PaywallHeader } from "./PaywallHeader";
 import { PlanCard } from "./PlanCard";
@@ -21,7 +22,7 @@ const RESULT_MESSAGE: Partial<Record<StoreResult, { tone: "success" | "warning";
     },
     nothing_to_restore: {
       tone: "warning",
-      text: `We couldn't find an active Goal4Me subscription on this ${STORE_NAME}.`,
+      text: `We couldn't find an active ${premiumName()} subscription on this ${STORE_NAME}.`,
     },
   };
 
@@ -61,7 +62,7 @@ export function StorePaywall({
     body = (
       <Banner
         tone="warning"
-        message="Subscriptions in the app are opening soon. Meanwhile you can upgrade on the Goal4Me website."
+        message={`Subscriptions in the app are opening soon. Meanwhile you can upgrade on the ${appConfig().name} website.`}
       />
     );
   } else if (plans.isPending) {

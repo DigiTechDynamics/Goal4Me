@@ -18,11 +18,11 @@ export function planPrice(id: PlanId): { total: string; perWeek: string } {
   return { total: usd(amountMinor), perWeek: usd(Math.round(amountMinor / weeks)) };
 }
 
-/**
- * One Premium subscription unlocks both apps (it is an account entitlement),
- * so the paywall lists the running app's benefits first, then the other's.
- */
-export const premiumBenefits = (): readonly string[] => appConfig().premiumBenefits;
+/** What this app's Premium unlocks (each app sells its own plan). */
+export const premiumBenefits = (): readonly string[] => appConfig().premium.benefits;
+
+/** "Goal4Me Fit Premium" or "Goal4Me Money Premium". */
+export const premiumName = (): string => `${appConfig().name} Premium`;
 
 /** Why the paywall opened, so the headline matches what the user tried to do. */
 export const PAYWALL_REASONS = {

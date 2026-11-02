@@ -1,7 +1,13 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { CLIENT_APPS, paynowCheckoutSchema, PLAN_IDS, PLAN_PRICES_USD } from "../index";
+import {
+  CLIENT_APPS,
+  ENTITLEMENT_FOR_APP,
+  paynowCheckoutSchema,
+  PLAN_IDS,
+  PLAN_PRICES_USD,
+} from "../index";
 
 describe("billing", () => {
   it("charges the same prices in the app and the PayNow Edge Function", () => {
@@ -23,6 +29,9 @@ describe("billing", () => {
     );
     const list = /CLIENT_APPS = \[([^\]]+)\]/.exec(deno)?.[1] ?? "";
     expect(list.split(",").map((s) => s.trim().replaceAll('"', ""))).toEqual([...CLIENT_APPS]);
+    for (const app of CLIENT_APPS) {
+      expect(deno, app).toContain(`${app}: "${ENTITLEMENT_FOR_APP[app]}"`);
+    }
     expect(
       paynowCheckoutSchema.safeParse({ method: "web", planId: "premium_yearly", app: "money" })
         .success,
