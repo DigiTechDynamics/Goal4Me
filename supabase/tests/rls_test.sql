@@ -320,6 +320,41 @@ do $$ begin
    where user_id = '11111111-1111-1111-1111-111111111111';
 end $$;
 
+-- Bob starts in Goal4Me Money: a money-only setup, no body quiz needed.
+select public.complete_money_setup('ZA', 'ZAR', 'Africa/Johannesburg', 'pay_off_debt') as _ \gset
+do $$ begin
+  assert (select currency from public.profiles) = 'ZAR', 'money setup sets the currency';
+  assert (select money_goal from public.profiles) = 'pay_off_debt', 'money setup saves the goal';
+  assert (select disclaimer_accepted_at is not null from public.profiles), 'disclaimer recorded';
+  assert (select count(*) from public.goals) = 0, 'money setup creates no fitness goal';
+  begin
+    perform public.complete_money_setup('ZA', 'ZAR', 'Africa/Johannesburg', 'get_rich_quick');
+    raise exception 'FAIL: unknown money goal accepted';
+  exception when check_violation then null; end;
+  begin
+    perform public.complete_money_setup('ZA', 'ZAR', 'Not/AZone', null);
+    raise exception 'FAIL: unknown time zone accepted';
+  exception when invalid_parameter_value then null; end;
+  -- Taking Fit's body quiz later keeps the currency chosen in Money. (Run in
+  -- a subtransaction that is then undone, so Bob's later checks start clean.)
+  begin
+    perform public.complete_onboarding('male', '1990-01-01', 180, 85, 'metric', 'ZW', 'USD',
+      'Africa/Johannesburg', 'build_strength', 85, 'moderate', 'intermediate', '{}', '{}',
+      3::smallint, 20::smallint, null, 'fat-burn-home', false);
+    assert (select currency from public.profiles) = 'ZAR', 'Fit quiz must not overwrite currency';
+    assert (select country from public.profiles) = 'ZA', 'Fit quiz must not overwrite country';
+    assert (select money_goal from public.profiles) = 'pay_off_debt', 'money goal kept';
+    raise exception using errcode = 'P0099';
+  exception when sqlstate 'P0099' then null; end;
+end $$;
+reset role;
+do $$ begin
+  assert (select currency from public.profiles
+           where user_id = '11111111-1111-1111-1111-111111111111') = 'USD',
+    'Bob''s setup left Alice''s profile alone';
+end $$;
+set local role authenticated;
+
 -- Bob's first budget gets the starter categories, limits from his income.
 select public.setup_budget(date_trunc('month', current_date)::date, 200000, 'ZAR') as _ \gset
 do $$ begin

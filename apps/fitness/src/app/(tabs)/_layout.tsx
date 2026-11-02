@@ -1,0 +1,72 @@
+import { Tabs } from "expo-router/js-tabs";
+import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { TabIcon, type TabIconName } from "@goal4me/app-kit/components/TabIcon";
+import { Banner, Button } from "@goal4me/app-kit/components/ui";
+import { useUserId } from "@goal4me/app-kit/auth/AuthProvider";
+import { useSyncPendingQuiz } from "@/features/onboarding/useSyncPendingQuiz";
+import { useRunSync } from "@/features/running/sync";
+import { useWorkoutSync } from "@/features/workouts/useWorkoutSync";
+import { colors, spacing } from "@goal4me/app-kit/theme/tokens";
+
+const TABS: { name: string; title: string; icon: TabIconName }[] = [
+  { name: "index", title: "Today", icon: "today" },
+  { name: "workouts", title: "Workouts", icon: "workouts" },
+  { name: "progress", title: "Progress", icon: "progress" },
+  { name: "profile", title: "Profile", icon: "profile" },
+];
+
+export default function TabsLayout() {
+  const userId = useUserId();
+  const sync = useSyncPendingQuiz(userId);
+  const unsyncedWorkouts = useWorkoutSync(userId);
+  const unsyncedRuns = useRunSync(userId);
+  const unsynced = unsyncedWorkouts + unsyncedRuns;
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View style={styles.flex}>
+      {sync.status === "error" ? (
+        <View style={[styles.syncError, { paddingTop: insets.top + spacing.sm }]}>
+          <Banner message="We couldn't save your quiz answers to your account." />
+          <Button label="Try again" variant="secondary" onPress={sync.retry} />
+        </View>
+      ) : null}
+      {unsynced > 0 ? (
+        <View style={[styles.syncError, { paddingTop: insets.top + spacing.sm }]}>
+          <Banner
+            tone="info"
+            message={`${unsynced} ${unsyncedRuns === 0 ? "workout" : unsyncedWorkouts === 0 ? "run" : "session"}${unsynced > 1 ? "s" : ""} saved on this phone. We'll sync when you're back online.`}
+          />
+        </View>
+      ) : null}
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: colors.brand,
+          tabBarInactiveTintColor: colors.textSubtle,
+          tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+          sceneStyle: { backgroundColor: colors.background },
+        }}
+      >
+        {TABS.map((tab) => (
+          <Tabs.Screen
+            key={tab.name}
+            name={tab.name}
+            options={{
+              title: tab.title,
+              tabBarIcon: ({ color, size }) => (
+                <TabIcon name={tab.icon} color={String(color)} size={size} />
+              ),
+            }}
+          />
+        ))}
+      </Tabs>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  flex: { flex: 1, backgroundColor: colors.background },
+  syncError: { paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.sm },
+});

@@ -18,7 +18,8 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.strict,
   {
-    files: ["apps/**/*.{ts,tsx}"],
+    // The apps and the React Native kit they share.
+    files: ["apps/**/*.{ts,tsx}", "packages/app-kit/**/*.{ts,tsx}"],
     plugins: { "react-hooks": reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -43,6 +44,12 @@ export default tseslint.config(
       globals: { require: "readonly", module: "writable", __dirname: "readonly" },
     },
     rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
+  {
+    // Node build scripts (e.g. packages/app-kit/scripts/exports.mjs) report on the console.
+    files: ["**/scripts/**/*.mjs"],
+    languageOptions: { globals: { process: "readonly", console: "readonly" } },
+    rules: { "no-console": "off" },
   },
   {
     files: ["**/*.test.ts"],
